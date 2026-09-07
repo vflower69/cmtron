@@ -1,4 +1,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://purplestonecorp.com/sitemap.xml
+Sitemap: https://cellmetron.com/sitemap.xml
