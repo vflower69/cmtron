@@ -1,0 +1,22 @@
+EMAIL RECEIPT TEMPLATES
+These are backend-side templates used by Cloudflare Workers when sending emails (via SendGrid, Resend, Mailgun, or Cloudflare Email Routing).
+
+✔ Subscription Confirmation Email
+(Triggered by Stripe subscription creation webhook)
+----------------------------------------------
+
+Subject: Your Evera Subscription Is Active
+
+Hi {{email}},
+
+Your Evera subscription is now active.
+
+Plan: {{plan}}
+Next Billing Date: {{next_billing_date}}
+
+You’ll receive updates, early access, and member-only benefits.
+
+Thank you for joining the Evera ritual.
+
+— Evera Team
+

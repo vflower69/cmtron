@@ -1,0 +1,20 @@
+EMAIL RECEIPT TEMPLATES
+These are backend-side templates used by Cloudflare Workers when sending emails (via SendGrid, Resend, Mailgun, or Cloudflare Email Routing).
+
+✔ Subscription Cancelled Email
+(Triggered by Stripe subscription creation webhook)
+----------------------------------------------
+
+Subject: Your Evera Subscription Has Been Cancelled
+
+Hi {{email}},
+
+Your Evera subscription has been cancelled.
+
+If this was a mistake or you’d like to restart your ritual, you can resubscribe anytime.
+
+Thank you for being part of Evera.
+
+— Evera Team
+
+

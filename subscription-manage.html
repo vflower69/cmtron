@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Subscription</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header class="header">
+    <nav class="nav">
+      <a href="index.html">Cellmetron</a>
+      <a href="subscription.html">Subscription</a>
+      <a href="subscription-manage.html">Manage</a>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="hero hero-gradient mb-xxl">
+      <h1 class="accent">Manage Subscription</h1>
+      <p>Update, pause, or cancel your Cellmetron ritual.</p>
+    </section>
+
+    <section class="section">
+      <div id="subscription-details"></div>
+      <button class="btn mt-lg" onclick="pauseSubscription()">Pause</button>
+      <button class="btn mt-lg" onclick="cancelSubscription()">Cancel</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; BLT Company – Cellmetron</p>
+  </footer>
+
+  <script src="../js/app.js"></script>
+  <script>
+    renderSubscription(); // defined in app.js
+  </script>
+</body>
+</html>

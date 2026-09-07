@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cellmetron Cart</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header class="header">
+    <nav class="nav">
+      <a href="index.html">Cellmetron</a>
+      <a href="shop.html">Shop</a>
+      <a href="cart.html">Cart</a>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="hero hero-gradient mb-xxl">
+      <h1 class="accent">Your Cart</h1>
+      <p>Review your daily longevity ritual before checkout.</p>
+    </section>
+
+    <section class="section">
+      <div id="cart-items"></div>
+      <div class="cta-bar mt-xxl">
+        <h2>Ready to checkout?</h2>
+        <a href="checkout.html" class="btn mt-lg">Go to Checkout</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; BLT Company – Cellmetron</p>
+  </footer>
+
+  <script src="../js/app.js"></script>
+  <script>
+    renderCart(); // defined in app.js
+  </script>
+</body>
+</html>

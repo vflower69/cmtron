@@ -1,0 +1,25 @@
+EMAIL RECEIPT TEMPLATES
+These are backend-side templates used by Cloudflare Workers when sending emails (via SendGrid, Resend, Mailgun, or Cloudflare Email Routing).
+
+✔ Order Receipt Email
+(Triggered by Stripe checkout success webhook)
+----------------------------------------------
+
+Subject: Your Evera Order Receipt
+
+Hi {{email}},
+
+Thank you for your purchase!
+
+Your order has been successfully processed.
+
+Order Summary:
+{{order_items}}
+
+Total Paid: ${{amount}}
+
+You’ll receive a shipping confirmation as soon as your order leaves our facility.
+
+Thank you for being part of Evera.
+
+— Evera Team
