@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Cellmetron Checkout</title>
+  <meta name="description" content="Complete your Cellmetron order — your daily longevity ritual begins here.">
   <link rel="stylesheet" href="./css/style.css">
 </head>
 
@@ -16,17 +17,30 @@
   </header>
 
   <main class="layout">
+
+    <!-- HERO -->
     <section class="hero hero-gradient mb-xxl">
       <h1 class="accent">Checkout</h1>
       <p>Complete your Cellmetron order.</p>
     </section>
 
+    <!-- ORDER SUMMARY -->
     <section class="section">
       <h2>Your Order</h2>
-      <div id="checkout-summary"></div>
+      <p>Review your items below before completing your purchase.</p>
+
+      <div id="checkout-summary" class="mt-lg"></div>
 
       <button class="btn mt-xl" onclick="checkout()">Pay Now</button>
     </section>
+
+    <!-- TRUST SECTION -->
+    <section class="section">
+      <h2>Secure Payment</h2>
+      <p>Your payment is processed securely through Stripe.  
+      You’ll receive an email receipt and shipping updates once your order is confirmed.</p>
+    </section>
+
   </main>
 
   <footer class="footer">
@@ -34,9 +48,12 @@
     <p>&copy; Cellmetron — a SUGI Global Company brand</p>
   </footer>
 
+  <!-- Stripe -->
   <script src="https://js.stripe.com/v3/"></script>
-  <script src="../js/app.js"></script>
-  <script src="../js/checkout.js"></script>
+
+  <!-- App Scripts -->
+  <script src="./js/app.js"></script>
+  <script src="./js/checkout.js"></script>
 
   <script>
     // Render cart summary
@@ -47,7 +64,12 @@
       container.innerHTML = "<p>Your cart is empty.</p>";
     } else {
       container.innerHTML = cart
-        .map(item => `<div class="card mb-lg"><h3>${item.name}</h3><p>Qty: ${item.qty}</p></div>`)
+        .map(item => `
+          <div class="card mb-lg">
+            <h3>${item.name}</h3>
+            <p>Qty: ${item.qty}</p>
+          </div>
+        `)
         .join("");
     }
   </script>
