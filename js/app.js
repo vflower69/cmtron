@@ -116,3 +116,22 @@ async function syncSubscriptionToBackend() {
     body: JSON.stringify({ plan }),
   });
 }
+
+// ===============================
+// Global Header & Footer Includes
+// ===============================
+
+function loadHTML(id, file) {
+  fetch(file)
+    .then(response => response.text())
+    .then(data => {
+      const container = document.getElementById(id);
+      if (container) container.innerHTML = data;
+    })
+    .catch(err => console.error(`Error loading ${file}:`, err));
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadHTML("header", "header.html");
+  loadHTML("footer", "footer.html");
+});
