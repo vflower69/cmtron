@@ -264,35 +264,42 @@ ul {
 
 /* footer */
 .footer {
-  background-color: #0b2a24; /* deep clinical green */
-  color: #e8e8e6; /* soft neutral white */
+  background-color: #0b2a24; /* deep green base */
+  color: #f2f2f0; /* soft neutral white */
   text-align: center;
   padding: 3rem 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   font-family: "Inter", "Segoe UI", sans-serif;
 }
+
 .footer-links {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 1.2rem;
+  gap: 1.4rem;
   margin-bottom: 2rem;
 }
+
 .footer-links a {
-  color: #b8d8d0; /* muted aqua accent */
+  color: #cfe8e0; /* light aqua for high contrast */
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.3s ease;
+  letter-spacing: 0.02em;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
 }
+
 .footer-links a:hover {
-  color: #7fffd4; /* aqua glow hover */
+  color: #7fffd4; /* bright aqua hover */
+  text-shadow: 0 0 6px rgba(127, 255, 212, 0.6); /* subtle glow */
 }
+
 .footer-text p {
   margin: 0.4rem 0;
   font-size: 0.95rem;
-  color: #dcdcd8;
+  color: #e0e0dc;
 }
+
 .footer-text p:first-child {
   font-style: italic;
-  color: #cfe8e0;
+  color: #d8f3ec;
 }
