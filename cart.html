@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Cellmetron Cart</title>
+  <meta name="description" content="Review your Cellmetron cart — your daily longevity ritual begins here.">
   <link rel="stylesheet" href="./css/style.css">
 </head>
+
 <body>
   <header class="header">
     <nav class="nav">
@@ -15,18 +17,23 @@
   </header>
 
   <main class="layout">
+
+    <!-- HERO -->
     <section class="hero hero-gradient mb-xxl">
       <h1 class="accent">Your Cart</h1>
       <p>Review your daily longevity ritual before checkout.</p>
     </section>
 
+    <!-- CART ITEMS -->
     <section class="section">
-      <div id="cart-items"></div>
+      <div id="cart-items" class="mt-lg"></div>
+
       <div class="cta-bar mt-xxl">
         <h2>Ready to checkout?</h2>
         <a href="checkout.html" class="btn mt-lg">Go to Checkout</a>
       </div>
     </section>
+
   </main>
 
   <footer class="footer">
@@ -34,7 +41,7 @@
     <p>&copy; Cellmetron — a SUGI Global Company brand</p>
   </footer>
 
-  <script src="../js/app.js"></script>
+  <script src="./js/app.js"></script>
   <script>
     renderCart(); // defined in app.js
   </script>
