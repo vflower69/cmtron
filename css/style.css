@@ -261,3 +261,38 @@ ul {
     padding: var(--space-lg) var(--space-sm);
   }
 }
+
+/* footer */
+.footer {
+  background-color: #0b2a24; /* deep clinical green */
+  color: #e8e8e6; /* soft neutral white */
+  text-align: center;
+  padding: 3rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+.footer-links a {
+  color: #b8d8d0; /* muted aqua accent */
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+.footer-links a:hover {
+  color: #7fffd4; /* aqua glow hover */
+}
+.footer-text p {
+  margin: 0.4rem 0;
+  font-size: 0.95rem;
+  color: #dcdcd8;
+}
+.footer-text p:first-child {
+  font-style: italic;
+  color: #cfe8e0;
+}
