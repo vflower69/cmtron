@@ -315,3 +315,44 @@ ul {
   font-style: italic;
   color: #d8f3ec;
 }
+
+/* Promotion box */
+.promo-box {
+  background: linear-gradient(145deg, #0b2a24 0%, #103830 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 3rem;
+  color: #e8e8e6;
+  text-align: center;
+  max-width: 800px;
+  margin: 3rem auto;
+  box-shadow: 0 0 25px rgba(127, 255, 212, 0.15);
+}
+
+.promo-box h2 {
+  color: #7fffd4;
+  font-size: 2rem;
+  margin-bottom: 1.2rem;
+}
+
+.promo-box p {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin-bottom: 1.2rem;
+  color: #dcdcd8;
+}
+
+.promo-box .btn {
+  background-color: #7fffd4;
+  color: #062b23;
+  font-weight: 600;
+  padding: 0.9rem 2rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.promo-box .btn:hover {
+  background-color: #9affea;
+  transform: translateY(-2px);
+}
