@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Manage Subscription</title>
+  <meta name="description" content="Manage your Cellmetron subscription — update, pause, or cancel your daily longevity ritual.">
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -15,23 +16,41 @@
   </header>
 
   <main class="layout">
+
+    <!-- HERO -->
     <section class="hero hero-gradient mb-xxl">
       <h1 class="accent">Manage Subscription</h1>
       <p>Update, pause, or cancel your Cellmetron ritual.</p>
     </section>
 
+    <!-- SUBSCRIPTION DETAILS -->
     <section class="section">
-      <div id="subscription-details"></div>
-      <button class="btn mt-lg" onclick="pauseSubscription()">Pause</button>
-      <button class="btn mt-lg" onclick="cancelSubscription()">Cancel</button>
+      <h2>Your Subscription</h2>
+      <p>Below is your active Cellmetron subscription. You can pause or cancel anytime — your ritual should fit your life, not the other way around.</p>
+
+      <div id="subscription-details" class="mt-lg"></div>
+
+      <div class="mt-xl">
+        <button class="btn" onclick="pauseSubscription()">Pause Subscription</button>
+        <button class="btn ml-lg" onclick="cancelSubscription()">Cancel Subscription</button>
+      </div>
     </section>
+
+    <!-- SUPPORT -->
+    <section class="section">
+      <h2>Need Help?</h2>
+      <p>If you need assistance with billing, shipping, or subscription changes, our support team is here to help.</p>
+      <p><strong>Email:</strong> support@Cellmetron.com</p>
+    </section>
+
   </main>
 
   <footer class="footer">
-    <p>&copy; BLT Company – Cellmetron</p>
+    <p>Longevity that fits your life — a delicious, effortless ritual that costs less than your daily coffee or tea.</p>
+    <p>&copy; Cellmetron — a SUGI Global Company brand</p>
   </footer>
 
-  <script src="../js/app.js"></script>
+  <script src="./js/app.js"></script>
   <script>
     renderSubscription(); // defined in app.js
   </script>
