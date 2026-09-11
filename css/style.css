@@ -379,3 +379,19 @@ ul {
   font-weight: 500;
   color: #34322d;
 }
+
+.support-btn {
+  padding: 0.6rem 1.2rem;
+  background: #00A89E; /* Cellmetron teal */
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.support-btn:hover {
+  background: #089e95;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+}
