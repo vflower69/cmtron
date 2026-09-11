@@ -388,10 +388,17 @@ ul {
   border-radius: 6px;
   text-decoration: none;
   box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-  transition: background 0.25s ease, box-shadow 0.25s ease;
+  transition: 
+    background 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease,
+    filter 0.25s ease;
 }
 
+/* Hover animation */
 .support-btn:hover {
   background: #089e95;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  transform: translateY(-2px) scale(1.03);
+  filter: drop-shadow(0 0 8px rgba(0,168,158,0.45));
 }
