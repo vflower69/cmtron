@@ -4,7 +4,7 @@
   viewBox="0 0 512 512"
   xmlns="http://www.w3.org/2000/svg"
 >
-  <style>cell
+  <style>
     :root {
       --cellmetron-green: #00A89E;
       --cellmetron-navy: #0A1E2E;
