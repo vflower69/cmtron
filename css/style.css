@@ -404,11 +404,14 @@ ul {
   filter: drop-shadow(0 0 8px rgba(0,168,158,0.45));
 }
 
+/* ACTIVE STATE — Header + Footer */
 .nav a.active,
 .footer-links a.active {
-  color: #00A89E;
-  font-weight: 600;
-  border-bottom: 2px solid #00A89E;
+  color: #00A89E !important;          /* strong teal */
+  font-weight: 700;                   /* more visual weight */
+  padding-bottom: 4px;                /* space for underline */
+  border-bottom: 3px solid #00A89E;   /* thicker underline */
+  text-shadow: 0 0 6px rgba(0, 168, 158, 0.4); /* subtle glow */
 }
 
 /* Footer hover only */
