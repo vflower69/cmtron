@@ -418,3 +418,85 @@ ul {
 .footer-links a:hover {
   color: #00A89E;
 }
+
+/* =============================== */
+/* Investor Hero Section           */
+/* =============================== */
+
+.investor-hero {
+  position: relative;
+  height: 60vh;
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2rem;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0A1E2E 0%, #003842 50%, #00A89E 100%);
+  animation: heroGradient 12s ease-in-out infinite alternate;
+}
+
+/* Animated gradient */
+@keyframes heroGradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+/* Subtle particle overlay */
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 3px 3px;
+  opacity: 0.25;
+  animation: particleFloat 18s linear infinite;
+}
+
+@keyframes particleFloat {
+  from { transform: translateY(0); }
+  to { transform: translateY(-200px); }
+}
+
+/* Hero content */
+.hero-content {
+  position: relative;
+  max-width: 800px;
+  text-align: center;
+  color: white;
+  animation: fadeInHero 1.6s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInHero {
+  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(20px); }
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.hero-subtitle {
+  font-size: 1.4rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  color: rgba(255,255,255,0.85);
+}
+
+/* CTA Button */
+.hero-cta {
+  display: inline-block;
+  padding: 0.9rem 2rem;
+  background: #00A89E;
+  color: #0A1E2E;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.25s ease;
+}
+
+.hero-cta:hover {
+  background: #00c7b8;
+  transform: translateY(-3px);
+}
