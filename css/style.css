@@ -500,3 +500,28 @@ ul {
   background: #00c7b8;
   transform: translateY(-3px);
 }
+
+.hero-mito {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  right: 8%;
+  bottom: 10%;
+  opacity: 0.35;
+  animation: mitoFloat 10s ease-in-out infinite alternate;
+}
+
+@keyframes mitoFloat {
+  0%   { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-18px) scale(1.05); }
+}
+
+@media (max-width: 768px) {
+  .hero-mito {
+    width: 160px;
+    height: 160px;
+    right: 4%;
+    bottom: 6%;
+    opacity: 0.25;
+  }
+}
