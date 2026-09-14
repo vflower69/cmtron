@@ -23,11 +23,26 @@
   <!-- auto loaded by app.js loadHTML() function) -->
   <div id="header"></div>
   <main class="layout">
+    
   <!-- Hero -->
   <!-- Animated Investor Hero -->
   <section class="investor-hero">
     <div class="hero-overlay"></div>
-  
+      <!-- Animated mitochondrion emblem -->
+      <svg class="hero-mito" viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <linearGradient id="mitoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00A89E"/>
+            <stop offset="100%" stop-color="#ffffff"/>
+          </linearGradient>
+        </defs>
+        <ellipse cx="100" cy="100" rx="70" ry="40" fill="none" stroke="url(#mitoGrad)" stroke-width="4"/>
+        <path d="M40 100 C60 70, 80 130, 100 100 C120 70, 140 130, 160 100"
+              fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="80" cy="90" r="4" fill="#00A89E"/>
+        <circle cx="120" cy="110" r="4" fill="#00A89E"/>
+      </svg>
+    
     <div class="hero-content">
       <h1 class="hero-title">Invest in the Future of Daily Longevity</h1>
       <p class="hero-subtitle">
