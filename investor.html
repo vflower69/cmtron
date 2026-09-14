@@ -36,11 +36,44 @@
             <stop offset="100%" stop-color="#ffffff"/>
           </linearGradient>
         </defs>
-        <ellipse cx="100" cy="100" rx="70" ry="40" fill="none" stroke="url(#mitoGrad)" stroke-width="4"/>
-        <path d="M40 100 C60 70, 80 130, 100 100 C120 70, 140 130, 160 100"
-              fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="80" cy="90" r="4" fill="#00A89E"/>
-        <circle cx="120" cy="110" r="4" fill="#00A89E"/>
+      
+        <!-- Outer mitochondrial membrane (matches favicon curvature) -->
+        <path d="M30 100
+                 C30 55, 70 20, 120 35
+                 C165 50, 175 95, 165 135
+                 C155 175, 110 185, 70 165
+                 C40 150, 30 130, 30 100Z"
+              fill="none"
+              stroke="url(#mitoGrad)"
+              stroke-width="5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+        />
+      
+        <!-- Inner folds (cristae) inspired by favicon geometry -->
+        <path d="M55 95
+                 C75 70, 95 120, 115 95
+                 C130 75, 145 115, 160 95"
+              fill="none"
+              stroke="#ffffff"
+              stroke-width="4"
+              stroke-linecap="round"
+        />
+      
+        <path d="M55 115
+                 C75 140, 95 90, 115 115
+                 C130 135, 145 95, 160 115"
+              fill="none"
+              stroke="#ffffff"
+              stroke-width="3"
+              stroke-linecap="round"
+              opacity="0.8"
+        />
+      
+        <!-- Nodes (matching favicon’s molecular dots) -->
+        <circle cx="85" cy="80" r="5" fill="#00A89E"/>
+        <circle cx="125" cy="120" r="5" fill="#00A89E"/>
+        <circle cx="105" cy="100" r="4" fill="#00A89E"/>
       </svg>
     
     <div class="hero-content">
