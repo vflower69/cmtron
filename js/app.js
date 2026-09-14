@@ -122,7 +122,7 @@ async function syncSubscriptionToBackend() {
 // ===============================
 
 function loadHTML(id, file) {
-  fetch(file)
+  return fetch(file)
     .then(response => response.text())
     .then(data => {
       const container = document.getElementById(id);
@@ -131,7 +131,27 @@ function loadHTML(id, file) {
     .catch(err => console.error(`Error loading ${file}:`, err));
 }
 
+function highlightActiveLinks() {
+  const currentPage = window.location.pathname.split("/").pop();
+
+  document.querySelectorAll(".nav a").forEach(link => {
+    if (link.getAttribute("href") === currentPage) {
+      link.classList.add("active");
+    }
+  });
+
+  document.querySelectorAll(".footer-links a").forEach(link => {
+    if (link.getAttribute("href") === currentPage) {
+      link.classList.add("active");
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  loadHTML("header", "header.html");
-  loadHTML("footer", "footer.html");
+  Promise.all([
+    loadHTML("header", "header.html"),
+    loadHTML("footer", "footer.html")
+  ]).then(() => {
+    highlightActiveLinks();
+  });
 });
