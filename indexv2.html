@@ -44,6 +44,80 @@
   <!-- Stylesheet -->
   <link rel="preload" href="./css/style.css" as="style">
   <link rel="stylesheet" href="./css/style.css">
+  <style>
+    /* HERO ANIMATION BASE */
+#hero-animation {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 2.8rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  border-right: 2px solid rgba(255,255,255,0.6);
+  animation: cursorBlink 0.8s infinite;
+}
+
+/* Cursor blink */
+@keyframes cursorBlink {
+  0% { border-color: rgba(255,255,255,0.6); }
+  50% { border-color: transparent; }
+  100% { border-color: rgba(255,255,255,0.6); }
+}
+
+/* Fade-in utility */
+.fade-in {
+  animation: fadeIn 1.2s ease forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Slide-up utility */
+.slide-up {
+  animation: slideUp 1.2s ease forwards;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Reveal utility */
+.reveal {
+  animation: reveal 1.4s ease forwards;
+}
+@keyframes reveal {
+  from { opacity: 0; letter-spacing: 1px; }
+  to { opacity: 1; letter-spacing: 0; }
+}
+
+/* Hero subheading */
+.hero-subheading {
+  margin-top: 1rem;
+  font-size: 1.25rem;
+  opacity: 0;
+  animation: fadeIn 1.6s ease forwards;
+  animation-delay: 0.5s;
+}
+
+/* Hero background narrative */
+.hero-background {
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  opacity: 0;
+  animation: fadeIn 2s ease forwards;
+  animation-delay: 1.2s;
+}
+
+/* CTA button */
+.hero-cta {
+  margin-top: 2rem;
+  opacity: 0;
+  animation: slideUp 2.4s ease forwards;
+  animation-delay: 1.8s;
+}
+
+  </style>
 
   <!-- Product Structured Data -->
   <script type="application/ld+json">
@@ -83,6 +157,21 @@
       <h1 class="accent">Cellmetron</h1>
       <p>Daily cellular optimization for better aging. A clinically aligned longevity formula engineered into a simple dissolvable cube — designed to elevate energy, clarity, mitochondrial resilience, and long‑term vitality.</p>
       <p>Cellmetron fits naturally into your day — a longevity ritual as enjoyable as a cup of the best coffee or tea in the world, and even more affordable.</p>
+    </section>
+    <section class="hero hero-gradient mb-xxl">
+      <h1 class="accent">
+        <span id="hero-animation"></span>
+      </h1>
+    
+      <p class="hero-subheading">
+        Cellular renewal begins with daily consistency — Cellmetron delivers clinically aligned nutrients that strengthen mitochondria, support NAD+, and reinforce long‑term vitality.
+      </p>
+    
+      <p class="hero-background">
+        Built on clean longevity science, engineered for daily use, and designed to fit naturally into your life — one cube, every day.
+      </p>
+    
+      <a href="shop.html" class="btn hero-cta mt-lg">Start Your Daily Ritual</a>
     </section>
 
     <div class="molecule-divider"></div>
@@ -184,6 +273,44 @@
 
   <div id="footer"></div>
   <script src="./js/app.js"></script>
+<script>
+  const heroLines = [
+    "Renew your cells",
+    "Restore your energy",
+    "Strengthen your mitochondria",
+    "Protect against cellular aging",
+    "Support anti‑senescence pathways",
+    "Elevate daily vitality",
+    "Build a better tomorrow",
+    "One cube. Every day."
+  ];
+
+  const heroElement = document.getElementById("hero-animation");
+  let index = 0;
+
+  function typeLine(text, callback) {
+    heroElement.textContent = "";
+    let i = 0;
+
+    const typer = setInterval(() => {
+      heroElement.textContent += text.charAt(i);
+      i++;
+      if (i === text.length) {
+        clearInterval(typer);
+        setTimeout(callback, 1200);
+      }
+    }, 45);
+  }
+
+  function animateHero() {
+    typeLine(heroLines[index], () => {
+      index = (index + 1) % heroLines.length;
+      animateHero();
+    });
+  }
+
+  animateHero();
+</script>
 
 </body>
 </html>
