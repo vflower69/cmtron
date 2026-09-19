@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Cellmetron v2 – Daily Cellular Optimization for Better Aging</title>
+  <meta name="description" content="Cellmetron v2 is a clinically engineered daily longevity formula supporting NAD+, mitochondrial energy, antioxidant defense, anti‑senescence pathways, and long-term vitality.">
+  <meta name="keywords" content="Cellmetron, longevity supplement, NAD+, CoQ10, Resveratrol, Curcumin, Omega-3, Taurine, Ergothioneine, Myricetin, mitochondrial support, anti-aging, cellular health">
+
+  <link rel="canonical" href="https://cellmetron.com/indexv2.html">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="./images/cellmetron-favicon.svg">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="./css/style.css">
+
+  <style>
+    /* -----------------------------------------------------------
+       GLOBAL + FLUENT UI
+    ----------------------------------------------------------- */
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+      background: #041f21;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    .layout {
+      width: 90%;
+      max-width: 1200px;
+      margin: auto;
+      padding-bottom: 4rem;
+    }
+
+    h1, h2, h3 {
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .accent {
+      color: #00ffd5;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 0.75rem 1.6rem;
+      border-radius: 999px;
+      background: #00ffd5;
+      color: #041f21;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 32px rgba(0,0,0,0.28);
+    }
+
+    .section {
+      margin-top: 4rem;
+      position: relative;
+    }
+
+    /* -----------------------------------------------------------
+       MITOCHONDRIA SVG BACKGROUND
+    ----------------------------------------------------------- */
+    .mito-bg {
+      position: absolute;
+      inset: 0;
+      background: url('data:image/svg+xml;utf8,\
+      <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+        <g fill="none" stroke="rgba(0,255,200,0.08)" stroke-width="1.4">
+          <ellipse cx="400" cy="300" rx="260" ry="120"/>
+          <ellipse cx="900" cy="500" rx="300" ry="140"/>
+          <ellipse cx="1300" cy="250" rx="240" ry="110"/>
+          <ellipse cx="700" cy="150" rx="200" ry="90"/>
+          <ellipse cx="1100" cy="700" rx="260" ry="120"/>
+        </g>
+      </svg>') center/cover no-repeat;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* -----------------------------------------------------------
+       HERO SECTION
+    ----------------------------------------------------------- */
+    .hero {
+      position: relative;
+      padding: 8rem 0 6rem;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    #hero-particles {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hero-glow {
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,255,200,0.35), transparent 60%);
+      filter: blur(40px);
+      top: 10%;
+      right: 5%;
+      animation: glowPulse 10s ease-in-out infinite alternate;
+    }
+
+    @keyframes glowPulse {
+      0% { transform: scale(0.9); opacity: 0.6; }
+      100% { transform: scale(1.1); opacity: 0.9; }
+    }
+
+    #hero-animation {
+      display: inline-block;
+      font-size: 3rem;
+      border-right: 2px solid rgba(255,255,255,0.6);
+      white-space: nowrap;
+      overflow: hidden;
+      animation: cursorBlink 0.8s infinite;
+    }
+
+    @keyframes cursorBlink {
+      0% { border-color: rgba(255,255,255,0.6); }
+      50% { border-color: transparent; }
+      100% { border-color: rgba(255,255,255,0.6); }
+    }
+
+    .hero-subheading, .hero-background {
+      max-width: 700px;
+      margin: 1rem auto;
+      opacity: 0;
+      animation: fadeIn 1.6s ease forwards;
+    }
+
+    .hero-background {
+      animation-delay: 1.2s;
+    }
+
+    .hero-cta {
+      opacity: 0;
+      animation: slideUp 2.4s ease forwards;
+      animation-delay: 1.8s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* -----------------------------------------------------------
+       SCROLL REVEAL
+    ----------------------------------------------------------- */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal-on-scroll.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* -----------------------------------------------------------
+       CARDS (Fluent-style)
+    ----------------------------------------------------------- */
+    .grid {
+      display: grid;
+      gap: 2rem;
+    }
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+    .grid-3 {
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .card {
+      padding: 1.8rem;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      backdrop-filter: blur(16px);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 32px rgba(0,0,0,0.28);
+      border-color: rgba(0,255,200,0.35);
+    }
+
+    /* -----------------------------------------------------------
+       TRUST BAND
+    ----------------------------------------------------------- */
+    .trust-band {
+      margin-top: 4rem;
+      padding: 2rem;
+      border-radius: 20px;
+      background: rgba(0,255,200,0.06);
+      border: 1px solid rgba(0,255,200,0.25);
+      text-align: center;
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="mito-bg"></div>
+
+<main class="layout">
+
+  <!-- HERO -->
+  <section class="hero hero-animated">
+    <div class="hero-bg">
+      <canvas id="hero-particles"></canvas>
+      <div class="hero-glow"></div>
+    </div>
+
+    <h1 class="accent"><span id="hero-animation"></span></h1>
+
+    <p class="hero-subheading">
+      Daily cellular optimization for better aging — clinically aligned nutrients that strengthen mitochondria, support NAD+, and reinforce long‑term vitality.
+    </p>
+
+    <p class="hero-background">
+      Built on clean longevity science, engineered for daily use, and designed to fit naturally into your life — one cube, every day.
+    </p>
+
+    <a href="shop.html" class="btn hero-cta">Start Your Daily Ritual</a>
+  </section>
+
+  <!-- WHY LONGEVITY MATTERS -->
+  <section class="section reveal-on-scroll">
+    <h2>Why Longevity Matters</h2>
+    <p>Longevity isn’t just about adding years — it’s about improving the quality of every day. More energy. Better recovery. Clearer mornings. Stronger evenings. Cellmetron helps you build a life that feels better now and ages better later.</p>
+  </section>
+
+  <!-- AM + PM STACK -->
+  <section class="section reveal-on-scroll">
+    <h2>Cellmetron AM + PM Dual‑Stack</h2>
+    <p class="mt-md">Two complementary phases — one continuous longevity strategy.</p>
+
+    <div class="grid grid-2 mt-lg">
+
+      <div class="card">
+        <h3>Cellmetron AM</h3>
+        <p>Daily performance, metabolic support, and mitochondrial resilience.</p>
+        <ul>
+          <li><strong>NR:</strong> NAD+ support</li>
+          <li><strong>CoQ10:</strong> ATP production</li>
+          <li><strong>Taurine:</strong> Metabolic stability</li>
+          <li><strong>Myricetin:</strong> Anti‑senescence</li>
+          <li><strong>Ergothioneine:</strong> Cognitive resilience</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Cellmetron PM</h3>
+        <p>Nightly repair, inflammation modulation, and long‑term cellular protection.</p>
+        <ul>
+          <li><strong>Resveratrol:</strong> Sirtuin activation</li>
+          <li><strong>Curcumin:</strong> Anti‑inflammatory support</li>
+          <li><strong>Omega‑3:</strong> Cardiovascular balance</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TRUST BAND -->
+  <section class="trust-band reveal-on-scroll">
+    <h3>Verified Purity & Clinical Manufacturing</h3>
+    <p>Every batch of Cellmetron is produced in a GMP‑certified facility, tested for purity, potency, and safety, and backed by a publicly available Certificate of Analysis (COA).</p>
+    <p>Uncompromising quality. Transparent science. Trusted longevity.</p>
+  </section>
+
+</main>
+
+<!-- JS ANIMATION -->
+<script>
+  const heroLines = [
+    "Renew your cells",
+    "Restore your energy",
+    "Strengthen your mitochondria",
+    "Protect against cellular aging",
+    "Support anti‑senescence pathways",
+    "Elevate daily vitality",
+    "Build a better tomorrow",
+    "One cube. Every day."
+  ];
+
+  const heroElement = document.getElementById("hero-animation");
+  let heroIndex = 0;
+
+  function typeLine(text, callback) {
+    heroElement.textContent = "";
+    let i = 0;
+    const typer = setInterval(() => {
+      heroElement.textContent += text.charAt(i);
+      i++;
+      if (i === text.length) {
+        clearInterval(typer);
+        setTimeout(callback, 1200);
+      }
+    }, 45);
+  }
+
+  function animateHero() {
+    typeLine(heroLines[heroIndex], () => {
+      heroIndex = (heroIndex + 1) % heroLines.length;
+      animateHero();
+    });
+  }
+
+  function initParticles() {
+    const canvas = document.getElementById("hero-particles");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    const particles = [];
+    const count = 60;
+
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: 1 + Math.random() * 2,
+        dx: (Math.random() - 0.5) * 0.3,
+        dy: (Math.random() - 0.5) * 0.3
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(180,255,240,0.7)";
+      particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        p.x += p.dx;
+        p.y += p.dy;
+
+        if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+      });
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    animateHero();
+    initParticles();
+
+    const revealElements = document.querySelectorAll(".reveal-on-scroll");
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    revealElements.forEach(el => observer.observe(el));
+  });
+</script>
+
+</body>
+</html>
