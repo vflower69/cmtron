@@ -528,11 +528,11 @@ ul {
 }
 
 .footer-principles {
-  margin-top: 24px;
+  margin-top: 20px;
   text-align: center;
-  font-size: 0.85rem;
-  color: #777;
-  letter-spacing: 0.5px;
+  font-size: 0.9rem;
+  color: #5a5a5a; /* softer neutral for daylight theme */
+  letter-spacing: 0.4px;
 }
 
 .principles-title {
@@ -542,7 +542,7 @@ ul {
 }
 
 .principles-list {
-  max-width: 600px;
+  max-width: 700px;
   margin: 0 auto;
-  line-height: 1.4;
+  line-height: 1.5;
 }
