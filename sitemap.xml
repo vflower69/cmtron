@@ -26,19 +26,19 @@
   </url>
 
   <url>
-    <loc>https://jimothytracker.org/clinical-roadmap.html</loc>
+    <loc>https://cellmetron.com/clinical-roadmap.html</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://jimothytracker.org/about.html</loc>
+    <loc>https://cellmetron.com/about.html</loc>
     <changefreq>always</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://jimothytracker.org/shop.html</loc>
+    <loc>https://cellmetron.com/shop.html</loc>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
   </url>
