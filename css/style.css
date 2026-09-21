@@ -526,3 +526,23 @@ ul {
     opacity: 0.25;
   }
 }
+
+.footer-principles {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #777;
+  letter-spacing: 0.5px;
+}
+
+.principles-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #555;
+}
+
+.principles-list {
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.4;
+}
