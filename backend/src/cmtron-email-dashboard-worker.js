@@ -1,52 +1,44 @@
-// cmtron-email-dashboard (updated)
+// cmtron-email-dashboard (final patched)
 // Bindings required: EMAIL_DB (D1), EMAIL_LOG_KV (KV), EMAIL_SEND_LOG_KV (KV)
+// Required env var for reply sending: OUTBOUND_WORKER_URL (URL of cmtron-email-outbound)
 // Optional env var: REQUIRE_ACCESS = "true" to enforce Cloudflare Access header check
 /*
-Featuring:
-1. Searchable inbox
-2. Spam scoring visibility
-3. Department routing audit
-4. Outbound send logs
-5. Error logs
-6. Clean HTML dashboard
-7. Department analytics page
-8. Spam heatmap
-9. “View full email” detail page
-10. Cellmetron-branded dashboard theme (teal/black, clean cards)
-11. CSV export buttons
-12. Charts.js graphs
-13. Authentication (Cloudflare Access)
-14. Dark/light theme toggle
+Features:
+- Searchable inbox
+- Spam scoring visibility
+- Department routing audit
+- Outbound send logs
+- Error logs
+- Clean HTML dashboard
+- Department analytics page
+- Spam heatmap
+- View full email detail page
+- Cellmetron-branded theme (teal/black)
+- CSV export buttons
+- Charts.js graphs
+- Cloudflare Access optional enforcement
+- Dark/light theme toggle
+- Reply button + reply form + /reply endpoint + replies table logging
+*/
 
-Deployment notes & checklist:
-1. Bindings — ensure EMAIL_DB, EMAIL_LOG_KV, EMAIL_SEND_LOG_KV are bound to this Worker.
-2. Cloudflare Access check (optional; controlled by REQUIRE_ACCESS env var) — set Worker variable REQUIRE_ACCESS = "true" to enforce Cloudflare Access header check. Also configure an Access policy in Cloudflare Access for the Worker route.
-3. Chart.js — Charts.js graphs on the dashboard (spam trend + department volume) using CDN https://cdn.jsdelivr.net/npm/chart.js, loaded from jsdelivr CDN; no extra server work required.
-4. CSV exports — /export?type=inbound|outbound|errors returns text/csv with Content-Disposition for download.
-5. Dark / light theme toggle — client stores preference in localStorage under cmtron-theme.
-6. KV limits — outbound export reads up to 1000 KV keys; increase or paginate if you expect more.
-
-The Eamil Dashboard URLs:
-Once deployed, you get:
-URL	              Purpose
-/	                Home dashboard
-/inbound	        Inbound email logs
-/outbound	        Outbound send attempts (KV)
-/errors	          Send errors (D1)
-/search?q=term	  Search inbound emails
-/analytics        Department analytics
-/spam-heatmap     Spam vs non‑spam by day
-/email?id=...     Full email detail view
-
-Example: https://email-dashboard.cellmetron.com/spam-heatmap
+/* NOTE: Before using replies, create the replies table in D1:
+   CREATE TABLE IF NOT EXISTS replies (
+     id TEXT PRIMARY KEY,
+     email_id TEXT,
+     to_addr TEXT,
+     from_addr TEXT,
+     subject TEXT,
+     body TEXT,
+     status TEXT,
+     error TEXT,
+     sent_at TEXT
+   );
 */
 
 export default {
   async fetch(request, env) {
     // Optional Access enforcement
     if (env.REQUIRE_ACCESS === "true") {
-      // Cloudflare Access injects headers when user is authenticated.
-      // Common header: 'cf-access-jwt-assertion' or 'cf-access-authenticated-user-email'
       const hasAccess = request.headers.get("cf-access-jwt-assertion") ||
                         request.headers.get("cf-access-authenticated-user-email");
       if (!hasAccess) {
@@ -58,18 +50,21 @@ export default {
     const path = url.pathname;
 
     // --- ROUTES ---
-    if (path === "/") return dashboardHome(env);
-    if (path === "/inbound") return inboundTable(env);
-    if (path === "/outbound") return outboundTable(env);
-    if (path === "/errors") return errorTable(env);
-    if (path === "/search") return searchEmails(env, url);
+    if (path === "/" && request.method === "GET") return dashboardHome(env);
+    if (path === "/inbound" && request.method === "GET") return inboundTable(env);
+    if (path === "/outbound" && request.method === "GET") return outboundTable(env);
+    if (path === "/errors" && request.method === "GET") return errorTable(env);
+    if (path === "/search" && request.method === "GET") return searchEmails(env, url);
 
     // New pages
-    if (path === "/analytics") return departmentAnalytics(env);
-    if (path === "/spam-heatmap") return spamHeatmap(env);
-    if (path === "/email") return emailDetail(env, url);
-    if (path === "/charts") return chartsPage(env);
-    if (path === "/export") return exportCsv(env, url);
+    if (path === "/analytics" && request.method === "GET") return departmentAnalytics(env);
+    if (path === "/spam-heatmap" && request.method === "GET") return spamHeatmap(env);
+    if (path === "/email" && request.method === "GET") return emailDetail(env, url);
+    if (path === "/charts" && request.method === "GET") return chartsPage(env);
+    if (path === "/export" && request.method === "GET") return exportCsv(env, url);
+
+    // Reply endpoint
+    if (path === "/reply" && request.method === "POST") return handleReply(request, env);
 
     return new Response("Not found", { status: 404 });
   }
@@ -84,7 +79,6 @@ async function dashboardHome(env) {
   const errorCount = await env.EMAIL_DB.prepare("SELECT COUNT(*) AS count FROM send_errors").first();
   const spamStats = await env.EMAIL_DB.prepare("SELECT SUM(is_spam) AS spam, SUM(1 - is_spam) AS ham FROM emails").first();
 
-  // Prepare small datasets for charts (last 30 days spam trend + department totals)
   const spamRows = await env.EMAIL_DB.prepare(
     `SELECT substr(received_at,1,10) AS day, SUM(is_spam) AS spam, SUM(1 - is_spam) AS clean
      FROM emails
@@ -109,8 +103,7 @@ async function dashboardHome(env) {
      ORDER BY total DESC`
   ).all();
 
-  // Inline JSON for client charts
-  const spamData = JSON.stringify(spamRows.results.reverse()); // oldest -> newest
+  const spamData = JSON.stringify(spamRows.results.reverse());
   const deptData = JSON.stringify(deptRows.results);
 
   return html(`
@@ -226,13 +219,13 @@ async function dashboardHome(env) {
   `, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
 }
 
-// inbound table (unchanged except detail link)
+// inbound table (added Reply button)
 async function inboundTable(env) {
   const rows = await env.EMAIL_DB.prepare("SELECT * FROM emails ORDER BY received_at DESC LIMIT 200").all();
   return html(`
     <header><h1>Inbound Emails</h1><a href="/">← Back</a></header>
     <table>
-      <tr><th>ID</th><th>From</th><th>To</th><th>Subject</th><th>Spam</th><th>Received</th><th>Detail</th></tr>
+      <tr><th>ID</th><th>From</th><th>To</th><th>Subject</th><th>Spam</th><th>Received</th><th>Actions</th></tr>
       ${rows.results.map(r => `
         <tr>
           <td>${r.id}</td>
@@ -241,7 +234,10 @@ async function inboundTable(env) {
           <td>${escape(r.subject)}</td>
           <td>${r.is_spam ? "⚠️" : ""}</td>
           <td>${r.received_at}</td>
-          <td><a href="/email?id=${encodeURIComponent(r.id)}">View</a></td>
+          <td>
+            <a href="/email?id=${encodeURIComponent(r.id)}">View</a>
+            <button class="reply-btn" data-id="${r.id}" data-from="${escape(r.from_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button>
+          </td>
         </tr>
       `).join("")}
     </table>
@@ -299,7 +295,7 @@ async function searchEmails(env, url) {
   return html(`
     <header><h1>Search Results for "${escape(q)}"</h1><a href="/">← Back</a></header>
     <table>
-      <tr><th>ID</th><th>From</th><th>To</th><th>Subject</th><th>Received</th><th>Detail</th></tr>
+      <tr><th>ID</th><th>From</th><th>To</th><th>Subject</th><th>Received</th><th>Actions</th></tr>
       ${rows.results.map(r => `
         <tr>
           <td>${r.id}</td>
@@ -307,7 +303,10 @@ async function searchEmails(env, url) {
           <td>${r.to_addr}</td>
           <td>${escape(r.subject)}</td>
           <td>${r.received_at}</td>
-          <td><a href="/email?id=${encodeURIComponent(r.id)}">View</a></td>
+          <td>
+            <a href="/email?id=${encodeURIComponent(r.id)}">View</a>
+            <button class="reply-btn" data-id="${r.id}" data-from="${escape(r.from_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button>
+          </td>
         </tr>
       `).join("")}
     </table>
@@ -377,12 +376,15 @@ async function spamHeatmap(env) {
   `);
 }
 
-// email detail
+// email detail (added reply form + reply history)
 async function emailDetail(env, url) {
   const id = url.searchParams.get("id");
   if (!id) return new Response("Missing id", { status: 400 });
   const row = await env.EMAIL_DB.prepare("SELECT * FROM emails WHERE id = ?").bind(id).first();
   if (!row) return new Response("Email not found", { status: 404 });
+
+  // fetch replies for this email
+  const replies = await env.EMAIL_DB.prepare("SELECT * FROM replies WHERE email_id = ? ORDER BY sent_at DESC LIMIT 50").bind(id).all();
 
   return html(`
     <header><h1>Email Detail</h1><a href="/inbound">← Back</a></header>
@@ -395,8 +397,97 @@ async function emailDetail(env, url) {
       <p><strong>Received:</strong> ${row.received_at}</p>
       <p><strong>Spam:</strong> ${row.is_spam ? "Yes" : "No"} (score: ${row.spam_score})</p>
     </section>
+
     <section class="detail-body"><h2>Body</h2><pre>${escape(row.body)}</pre></section>
+
+    <section class="reply-section">
+      <h2>Reply</h2>
+      <textarea id="replyText" rows="6" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);"></textarea>
+      <div style="margin-top:8px;">
+        <button id="sendReplyBtn" data-email-id="${row.id}" data-from="contact@cellmetron.com">Send Reply</button>
+        <span id="replyStatus" style="margin-left:12px;color:var(--muted)"></span>
+      </div>
+    </section>
+
+    <section class="replies-list">
+      <h3>Replies</h3>
+      ${replies.results.length === 0 ? '<p>No replies yet.</p>' : replies.results.map(r => `
+        <div class="reply-item" style="margin-bottom:12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);">
+          <div style="font-size:13px;color:var(--muted)"><strong>To:</strong> ${r.to_addr} • <small>${r.sent_at}</small></div>
+          <pre style="margin:8px 0 6px;">${escape(r.body)}</pre>
+          <div style="font-size:13px;color:var(--muted)"><strong>Status:</strong> ${r.status}${r.error ? ` — ${escape(r.error)}` : ''}</div>
+        </div>
+      `).join('')}
+    </section>
   `);
+}
+
+/* -------------------------
+   Reply handler
+   POST /reply
+   Body: { emailId, replyText, from? }
+   ------------------------- */
+async function handleReply(request, env) {
+  try {
+    const payload = await request.json();
+    const { emailId, replyText, from } = payload || {};
+
+    if (!emailId || !replyText) {
+      return new Response(JSON.stringify({ error: "Missing emailId or replyText" }), { status: 400, headers: { "Content-Type": "application/json" }});
+    }
+
+    const row = await env.EMAIL_DB.prepare("SELECT * FROM emails WHERE id = ?").bind(emailId).first();
+    if (!row) {
+      return new Response(JSON.stringify({ error: "Original email not found" }), { status: 404, headers: { "Content-Type": "application/json" }});
+    }
+
+    const to = row.from_addr;
+    const subject = `Re: ${row.subject}`;
+    const fromAddr = from || "contact@cellmetron.com";
+    const text = replyText;
+
+    const sendPayload = { from: fromAddr, to, subject, text, originalEmailId: emailId };
+
+    let sendStatus = "sent";
+    let sendError = null;
+
+    try {
+      if (!env.OUTBOUND_WORKER_URL) throw new Error("OUTBOUND_WORKER_URL not configured");
+      const res = await fetch(env.OUTBOUND_WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sendPayload)
+      });
+      if (!res.ok) {
+        sendStatus = "failed";
+        const bodyText = await res.text().catch(()=>"");
+        sendError = `Outbound worker responded ${res.status} ${bodyText}`;
+      }
+    } catch (err) {
+      sendStatus = "failed";
+      sendError = String(err);
+    }
+
+    const replyId = `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await env.EMAIL_DB.prepare(
+      `INSERT INTO replies (id, email_id, to_addr, from_addr, subject, body, status, error, sent_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      replyId,
+      emailId,
+      to,
+      fromAddr,
+      subject,
+      text,
+      sendStatus,
+      sendError,
+      new Date().toISOString()
+    ).run();
+
+    return new Response(JSON.stringify({ ok: true, replyId, status: sendStatus, error: sendError }), { status: 200, headers: { "Content-Type": "application/json" }});
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { "Content-Type": "application/json" }});
+  }
 }
 
 /* -------------------------
@@ -491,7 +582,7 @@ async function chartsPage(env) {
 }
 
 /* -------------------------
-   HTML wrapper + theme + styles
+   HTML wrapper + theme + styles + client reply JS
    ------------------------- */
 function html(content, opts = {}) {
   return new Response(`
@@ -525,7 +616,7 @@ function html(content, opts = {}) {
           background: radial-gradient(circle at top left, #0f172a 0, #020617 50%, #000 100%);
           color: var(--text);
         }
-        :root.light body { background: #f6fbfb; }
+        :root.light body { background: #f6fbfb; color: var(--text); }
         header h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: 0.03em; }
         header p { margin: 0 0 16px; color: var(--muted); }
         a { color: var(--accent); text-decoration: none; }
@@ -556,9 +647,86 @@ function html(content, opts = {}) {
         .chart-row { display:flex; gap:16px; margin-top:12px; flex-wrap:wrap; }
         .small-link { display:inline-block; margin-top:8px; color:var(--muted); }
         .charts-full canvas { width:100%; max-width:900px; height:320px; display:block; margin:16px 0; }
+        .reply-btn { background:transparent;border:1px solid var(--border);color:var(--accent);padding:6px 8px;border-radius:6px;cursor:pointer; }
+        .reply-section textarea { background: #020617; color: var(--text); border:1px solid var(--border); border-radius:8px; padding:8px; }
       </style>
     </head>
-    <body>${content}</body>
+    <body>
+      ${content}
+
+      <script>
+        // Client helper: POST /reply
+        async function postReply(emailId, replyText, from) {
+          const res = await fetch('/reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emailId, replyText, from })
+          });
+          return res.json();
+        }
+
+        // Wire reply buttons on inbound list and search results
+        document.addEventListener('click', async (e) => {
+          if (e.target && e.target.matches('.reply-btn')) {
+            const id = e.target.getAttribute('data-id');
+            const from = e.target.getAttribute('data-from');
+            const subject = e.target.getAttribute('data-subject');
+
+            const replyText = prompt(\`Reply to \${from}\\nSubject: Re: \${subject}\\n\\nEnter your reply:\`);
+            if (!replyText) return;
+
+            e.target.disabled = true;
+            const originalText = e.target.textContent;
+            e.target.textContent = 'Sending…';
+
+            try {
+              const result = await postReply(id, replyText, 'contact@cellmetron.com');
+              if (result && result.ok) {
+                alert('Reply sent');
+                location.reload();
+              } else {
+                alert('Failed to send reply: ' + (result.error || result.status));
+              }
+            } catch (err) {
+              alert('Error: ' + err);
+            } finally {
+              e.target.disabled = false;
+              e.target.textContent = originalText;
+            }
+          }
+        });
+
+        // Wire send button on email detail page
+        document.addEventListener('click', async (e) => {
+          if (e.target && e.target.id === 'sendReplyBtn') {
+            const emailId = e.target.getAttribute('data-email-id');
+            const from = e.target.getAttribute('data-from') || 'contact@cellmetron.com';
+            const textarea = document.getElementById('replyText');
+            const statusEl = document.getElementById('replyStatus');
+            const text = textarea.value.trim();
+            if (!text) { statusEl.textContent = 'Reply is empty'; return; }
+
+            e.target.disabled = true;
+            statusEl.textContent = 'Sending…';
+
+            try {
+              const result = await postReply(emailId, text, from);
+              if (result && result.ok) {
+                statusEl.textContent = 'Sent';
+                textarea.value = '';
+                setTimeout(()=> location.reload(), 800);
+              } else {
+                statusEl.textContent = 'Failed: ' + (result.error || result.status);
+              }
+            } catch (err) {
+              statusEl.textContent = 'Error: ' + err;
+            } finally {
+              e.target.disabled = false;
+            }
+          }
+        });
+      </script>
+    </body>
     </html>
   `, { headers: { "Content-Type": "text/html; charset=UTF-8" }});
 }
