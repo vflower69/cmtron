@@ -1,3 +1,46 @@
+// cmtron-email-dashboard (updated)
+// Bindings required: EMAIL_DB (D1), EMAIL_LOG_KV (KV), EMAIL_SEND_LOG_KV (KV)
+// Optional env var: REQUIRE_ACCESS = "true" to enforce Cloudflare Access header check
+/*
+Featuring:
+1. Searchable inbox
+2. Spam scoring visibility
+3. Department routing audit
+4. Outbound send logs
+5. Error logs
+6. Clean HTML dashboard
+7. Department analytics page
+8. Spam heatmap
+9. “View full email” detail page
+10. Cellmetron-branded dashboard theme (teal/black, clean cards)
+11. CSV export buttons
+12. Charts.js graphs
+13. Authentication (Cloudflare Access)
+14. Dark/light theme toggle
+
+Deployment notes & checklist:
+1. Bindings — ensure EMAIL_DB, EMAIL_LOG_KV, EMAIL_SEND_LOG_KV are bound to this Worker.
+2. Cloudflare Access check (optional; controlled by REQUIRE_ACCESS env var) — set Worker variable REQUIRE_ACCESS = "true" to enforce Cloudflare Access header check. Also configure an Access policy in Cloudflare Access for the Worker route.
+3. Chart.js — Charts.js graphs on the dashboard (spam trend + department volume) using CDN https://cdn.jsdelivr.net/npm/chart.js, loaded from jsdelivr CDN; no extra server work required.
+4. CSV exports — /export?type=inbound|outbound|errors returns text/csv with Content-Disposition for download.
+5. Dark / light theme toggle — client stores preference in localStorage under cmtron-theme.
+6. KV limits — outbound export reads up to 1000 KV keys; increase or paginate if you expect more.
+
+The Eamil Dashboard URLs:
+Once deployed, you get:
+URL	              Purpose
+/	                Home dashboard
+/inbound	        Inbound email logs
+/outbound	        Outbound send attempts (KV)
+/errors	          Send errors (D1)
+/search?q=term	  Search inbound emails
+/analytics        Department analytics
+/spam-heatmap     Spam vs non‑spam by day
+/email?id=...     Full email detail view
+
+Example: https://email-dashboard.cellmetron.com/spam-heatmap
+*/
+
 // cmtron-email-dashboard (final patched)
 // Bindings required: EMAIL_DB (D1), EMAIL_LOG_KV (KV), EMAIL_SEND_LOG_KV (KV)
 // Required env var for reply sending: OUTBOUND_WORKER_URL (URL of cmtron-email-outbound)
@@ -48,6 +91,50 @@ export default {
 
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // ------------------------------------------------------------
+    // Attachment download route: /api/attachments/:kvKey
+    // ------------------------------------------------------------
+    if (path.startsWith("/api/attachments/") && request.method === "GET") {
+      const rawKey = path.replace("/api/attachments/", "");
+      const kvKey = decodeURIComponent(rawKey || "");
+
+      // Basic safety validation
+      const SAFE_KEY_RE = /^[A-Za-z0-9._\-]{1,240}$/;
+      if (!SAFE_KEY_RE.test(kvKey)) {
+        return new Response(JSON.stringify({ error: "Invalid attachment key" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      try {
+        // Fetch binary file from KV
+        const file = await env.EMAIL_ATTACHMENTS_KV.get(kvKey, { type: "arrayBuffer" });
+        if (!file) {
+          return new Response("Attachment not found", { status: 404 });
+        }
+
+        // Fetch metadata (filename + contentType)
+        const metadata = await env.EMAIL_ATTACHMENTS_KV.get(kvKey, { type: "metadata" }) || {};
+        const filename = (metadata.filename || kvKey).replace(/"/g, "");
+        const contentType = metadata.contentType || "application/octet-stream";
+
+        return new Response(file, {
+          status: 200,
+          headers: {
+            "Content-Type": contentType,
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Cache-Control": "public, max-age=31536000"
+          }
+        });
+      } catch (err) {
+        return new Response(
+          JSON.stringify({ error: "Failed to retrieve attachment", details: String(err) }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // --- ROUTES ---
     if (path === "/" && request.method === "GET") return dashboardHome(env);
@@ -181,7 +268,6 @@ async function dashboardHome(env) {
         applyTheme(localStorage.getItem('cmtron-theme'));
       })();
 
-      // Charts data injected from server
       const spamRows = ${spamData};
       const deptRows = ${deptData};
 
@@ -243,6 +329,7 @@ async function inboundTable(env) {
     </table>
   `);
 }
+
 
 // outbound table (KV)
 async function outboundTable(env) {
@@ -380,14 +467,65 @@ async function spamHeatmap(env) {
 async function emailDetail(env, url) {
   const id = url.searchParams.get("id");
   if (!id) return new Response("Missing id", { status: 400 });
-  const row = await env.EMAIL_DB.prepare("SELECT * FROM emails WHERE id = ?").bind(id).first();
+
+  const row = await env.EMAIL_DB.prepare(
+    "SELECT * FROM emails WHERE id = ?"
+  ).bind(id).first();
+
   if (!row) return new Response("Email not found", { status: 404 });
 
-  // fetch replies for this email
-  const replies = await env.EMAIL_DB.prepare("SELECT * FROM replies WHERE email_id = ? ORDER BY sent_at DESC LIMIT 50").bind(id).all();
+  // Parse attachments JSON
+  let attachments = [];
+  try {
+    attachments = JSON.parse(row.attachments_json || "[]");
+  } catch {
+    attachments = [];
+  }
+
+  // Fetch replies for this email
+  const replies = await env.EMAIL_DB.prepare(
+    "SELECT * FROM replies WHERE email_id = ? ORDER BY sent_at DESC LIMIT 50"
+  ).bind(id).all();
+
+  // Helper: file type icon
+  function iconFor(filename) {
+    const f = filename.toLowerCase();
+    if (f.endsWith(".png") || f.endsWith(".jpg") || f.endsWith(".jpeg") || f.endsWith(".gif")) return "🖼️";
+    if (f.endsWith(".pdf")) return "📄";
+    if (f.endsWith(".txt")) return "📘";
+    if (f.endsWith(".zip")) return "📦";
+    return "📁";
+  }
+
+  // Build attachment list HTML
+  const attachmentHtml = attachments.length
+    ? attachments.map(a => `
+        <div class="attachment-item">
+          <span>${iconFor(a.filename)} ${a.filename} (${a.size} bytes)</span>
+          <a class="download-btn"
+             href="/api/attachments/${encodeURIComponent(a.kvKey)}"
+             download="${a.filename}">
+            Download
+          </a>
+
+          ${a.filename.toLowerCase().match(/\.(png|jpg|jpeg|gif)$/)
+            ? `<img src="/api/attachments/${encodeURIComponent(a.kvKey)}"
+                   style="max-width:300px;margin-top:10px;border:1px solid #ccc;border-radius:6px;" />`
+            : ""
+          }
+
+          ${a.filename.toLowerCase().endsWith(".pdf")
+            ? `<iframe src="/api/attachments/${encodeURIComponent(a.kvKey)}"
+                       style="width:100%;height:480px;margin-top:10px;border:1px solid #ccc;border-radius:6px;"></iframe>`
+            : ""
+          }
+        </div>
+      `).join("")
+    : `<p>No attachments</p>`;
 
   return html(`
     <header><h1>Email Detail</h1><a href="/inbound">← Back</a></header>
+
     <section class="detail">
       <h2>Metadata</h2>
       <p><strong>ID:</strong> ${row.id}</p>
@@ -398,29 +536,81 @@ async function emailDetail(env, url) {
       <p><strong>Spam:</strong> ${row.is_spam ? "Yes" : "No"} (score: ${row.spam_score})</p>
     </section>
 
-    <section class="detail-body"><h2>Body</h2><pre>${escape(row.body)}</pre></section>
+    <section class="detail-body">
+      <h2>Body</h2>
+      <pre>${escape(row.body)}</pre>
+    </section>
+
+    <section class="email-attachments">
+      <h2>Attachments</h2>
+      ${attachmentHtml}
+    </section>
 
     <section class="reply-section">
       <h2>Reply</h2>
-      <textarea id="replyText" rows="6" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);"></textarea>
+      <textarea id="replyText" rows="6"
+        style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);"></textarea>
       <div style="margin-top:8px;">
-        <button id="sendReplyBtn" data-email-id="${row.id}" data-from="contact@cellmetron.com">Send Reply</button>
+        <button id="sendReplyBtn"
+                data-email-id="${row.id}"
+                data-from="contact@cellmetron.com">
+          Send Reply
+        </button>
         <span id="replyStatus" style="margin-left:12px;color:var(--muted)"></span>
       </div>
     </section>
 
     <section class="replies-list">
       <h3>Replies</h3>
-      ${replies.results.length === 0 ? '<p>No replies yet.</p>' : replies.results.map(r => `
-        <div class="reply-item" style="margin-bottom:12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);">
-          <div style="font-size:13px;color:var(--muted)"><strong>To:</strong> ${r.to_addr} • <small>${r.sent_at}</small></div>
-          <pre style="margin:8px 0 6px;">${escape(r.body)}</pre>
-          <div style="font-size:13px;color:var(--muted)"><strong>Status:</strong> ${r.status}${r.error ? ` — ${escape(r.error)}` : ''}</div>
-        </div>
-      `).join('')}
+      ${
+        replies.results.length === 0
+          ? '<p>No replies yet.</p>'
+          : replies.results.map(r => `
+            <div class="reply-item"
+                 style="margin-bottom:12px;padding:10px;border-radius:8px;
+                        background:rgba(255,255,255,0.02);border:1px solid var(--border);">
+              <div style="font-size:13px;color:var(--muted)">
+                <strong>To:</strong> ${r.to_addr} • <small>${r.sent_at}</small>
+              </div>
+              <pre style="margin:8px 0 6px;">${escape(r.body)}</pre>
+              <div style="font-size:13px;color:var(--muted)">
+                <strong>Status:</strong> ${r.status}
+                ${r.error ? ` — ${escape(r.error)}` : ''}
+              </div>
+            </div>
+          `).join('')
+      }
     </section>
+
+    <style>
+      .attachment-item {
+        margin-bottom: 20px;
+        padding: 10px;
+        background: #f7f7f7;
+        border-radius: 8px;
+      }
+      .download-btn {
+        display: inline-block;
+        margin-left: 12px;
+        padding: 6px 10px;
+        background: #1fd1b5;
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+      }
+      .download-btn:hover {
+        background: #17b39a;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #f0f0f0;
+        padding: 12px;
+        border-radius: 8px;
+      }
+    </style>
   `);
 }
+
 
 /* -------------------------
    Reply handler
