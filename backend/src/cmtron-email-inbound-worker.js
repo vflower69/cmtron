@@ -27,6 +27,13 @@ export default {
       const bodyText = normalizeBodyToText(rawBody);
 
       // --------------------------------------------------
+      // ID
+      // --------------------------------------------------
+      const id = `email-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}`;
+
+      // --------------------------------------------------
       // Attachments
       // --------------------------------------------------
       //const attachments = extractAttachments(event);
@@ -78,15 +85,8 @@ export default {
       const safeTimestamp = new Date().toISOString();
 
       // --------------------------------------------------
-      // ID
-      // --------------------------------------------------
-      const id = `email-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}`;
-
-      // --------------------------------------------------
       // Structured logging (Cloudflare Analytics friendly)
-// --------------------------------------------------
+      // --------------------------------------------------
       console.log(
         JSON.stringify({
           type: "inbound_email",
