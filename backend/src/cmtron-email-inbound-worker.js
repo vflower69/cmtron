@@ -449,34 +449,48 @@ function extractClientIp(event) {
 
 async function extractEmailBody(event) {
   try {
-    // 1. text() API
+    // 1️⃣ Try text() and html() first
     if (typeof event.text === "function") {
       const t = await event.text();
       if (t?.trim()) return t;
     }
-
-    // 2. html() API
     if (typeof event.html === "function") {
       const h = await event.html();
       if (h?.trim()) return h;
     }
 
-    // 3. MIME parts
-    if (event.body?.parts?.length) {
-      const textPart = event.body.parts.find(p => p.type === "text/plain");
-      if (textPart?.data) return textPart.data;
-
-      const htmlPart = event.body.parts.find(p => p.type === "text/html");
-      if (htmlPart?.data) return htmlPart.data;
+    // 2️⃣ Handle ReadableStream (event.body or event.raw)
+    const stream = event.body || event.raw;
+    if (stream && typeof stream.getReader === "function") {
+      const reader = stream.getReader();
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+      const merged = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+      return new TextDecoder("utf-8").decode(merged);
     }
 
-    // 4. data.text / data.html
+    // 3️⃣ Handle ArrayBuffer or Blob
+    if (stream instanceof ArrayBuffer) {
+      return new TextDecoder("utf-8").decode(new Uint8Array(stream));
+    }
+    if (stream instanceof Blob) {
+      return await stream.text();
+    }
+
+    // 4️⃣ Fallbacks
     if (event.data?.text) return event.data.text;
     if (event.data?.html) return event.data.html;
-
-    // 5. raw MIME
-    if (event.raw) return event.raw;
-
+    if (typeof event.raw === "string") return event.raw;
     return "(empty)";
   } catch (err) {
     console.error("extractEmailBody() failed:", err);
