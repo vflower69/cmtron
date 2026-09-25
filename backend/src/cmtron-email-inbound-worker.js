@@ -29,7 +29,9 @@ export default {
       // --------------------------------------------------
       // Attachments
       // --------------------------------------------------
-      const attachments = extractAttachments(event);
+      //const attachments = extractAttachments(event);
+      const attachments = await processAttachments(event, env, id);
+
 
       // --------------------------------------------------
       // URL extraction
@@ -892,4 +894,43 @@ async function validateD1Schema(env) {
       })
     );
   }
+}
+
+async function processAttachments(event, env, emailId) {
+  const attachments = [];
+
+  if (event.body?.parts?.length) {
+    for (const part of event.body.parts) {
+      const isAttachment =
+        part.disposition === "attachment" ||
+        part.filename ||
+        part.name;
+
+      if (isAttachment && part.data) {
+        const filename = part.filename || part.name || "attachment.bin";
+        const contentType = part.type || "application/octet-stream";
+        const base64Data = part.data;
+
+        // Decode base64 to binary
+        const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+        // Store in KV for download
+        const kvKey = `${emailId}-${filename}`;
+        if (env.EMAIL_ATTACHMENTS_KV?.put) {
+          await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
+            metadata: { contentType, filename }
+          });
+        }
+
+        attachments.push({
+          filename,
+          contentType,
+          size: binary.length,
+          kvKey
+        });
+      }
+    }
+  }
+
+  return attachments;
 }
