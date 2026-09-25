@@ -23,8 +23,8 @@ export default {
       // --------------------------------------------------
       // Body extraction (robust) + HTML → text
       // --------------------------------------------------
-      const rawBody = await extractEmailBody(event);
-      const bodyText = normalizeBodyToText(rawBody);
+      //const rawBody = await extractEmailBody(event);
+      //const bodyText = normalizeBodyToText(rawBody);
 
       // --------------------------------------------------
       // ID
@@ -37,8 +37,38 @@ export default {
       // Attachments
       // --------------------------------------------------
       //const attachments = extractAttachments(event);
-      const attachments = await processAttachments(event, env, id);
+      //const attachments = await processAttachments(event, env, id);
+      //console.log("Attachments processed:", attachments);
+      // Prefer the full raw MIME; fall back to other sources
+      
+// Prefer the full raw MIME; fall back to other sources
+let rawMime = "";
 
+if (event && typeof event.raw === "string" && event.raw.length) {
+  rawMime = event.raw;
+  console.log("Using event.raw (length):", rawMime.length);
+}
+
+// Fallback ONLY if event.raw is missing (rare)
+if (!rawMime) {
+  rawMime = await extractEmailBody(event);
+
+  console.log("Using extractEmailBody() fallback (length):", rawMime ? rawMime.length : 0);
+}
+const bodyText = normalizeBodyToText(rawMime);
+console.log("RAW length:", rawMime.length);
+console.log("Contains attachment header:", rawMime.includes("Content-Disposition: attachment"));
+
+// Diagnostics
+console.log("RAW length:", rawMime.length);
+console.log("RAW head:", rawMime.slice(0, 800));
+console.log("RAW tail:", rawMime.slice(-800));
+console.log("Contains attachment header:", rawMime.includes("Content-Disposition: attachment"));
+
+// Call the robust extractor that splits by boundary and writes to KV
+const attachments = await extractAttachmentsFromRaw(rawMime, env, id);
+
+console.log("Attachments saved to D1:", JSON.stringify(attachments));
 
       // --------------------------------------------------
       // URL extraction
@@ -902,6 +932,8 @@ async function processAttachments(event, env, emailId) {
   // --------------------------------------------------
   // 1. Standard MIME attachments (event.body.parts)
   // --------------------------------------------------
+  var contentType;
+  var arrayBuffer;
   if (event.body?.parts?.length) {
     for (const part of event.body.parts) {
       const isAttachment =
@@ -911,20 +943,39 @@ async function processAttachments(event, env, emailId) {
 
       if (isAttachment && part.data) {
         const filename = part.filename || part.name || "attachment.bin";
-        const contentType = part.type || "application/octet-stream";
+        /*const */contentType = part.type || "application/octet-stream";
         const base64Data = part.data;
 
         // Decode base64 → Uint8Array
-        const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
+        //const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+const cleanBase64 = base64Data.replace(/\s+/g, "");
+const binary = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
+/*const */arrayBuffer = binary.slice().buffer;
         // KV key for download
         const kvKey = `${emailId}-${filename}`;
 
         // Store binary in KV
         if (env.EMAIL_ATTACHMENTS_KV?.put) {
-          await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
+        /* await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
             metadata: { contentType, filename }
-          });
+          }); 
+          await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary.buffer, {
+  metadata: { contentType, filename }
+});
+const arrayBuffer = binary.slice().buffer;
+await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
+  metadata: { contentType, filename }
+});*/
+
+
+
+
+await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
+  metadata: { contentType, filename }
+});
+
+
+
         }
 
         attachments.push({
@@ -941,41 +992,180 @@ async function processAttachments(event, env, emailId) {
   // 2. Fallback: detect attachments inside raw MIME
   //    (handles forwarded emails, nested MIME, etc.)
   // --------------------------------------------------
-  if (typeof event.raw === "string" &&
-      event.raw.includes("Content-Disposition: attachment")) {
+if (typeof event.raw === "string" && event.raw.includes("Content-Disposition: attachment")) {
+  // Capture both quoted and unquoted filenames; tolerate extra whitespace and CRLFs
+  const matches = [
+    ...event.raw.matchAll(
+      /Content-Disposition:\s*attachment;[^]*?filename="?([^"\r\n]+)"?[^]*?Content-Transfer-Encoding:\s*base64\s*\r?\n([^]*?)(?=\r?\n--|--\r?\n|$)/gi
+    )
+  ];
 
-    const matches = [
-      ...event.raw.matchAll(
-        /filename="([^"]+)"[\s\S]*?base64\s+([\s\S]+?)--/g
-      )
-    ];
+  console.log("Fallback matches:", matches.length);
 
-    for (const [, filename, base64Data] of matches) {
-      const cleanBase64 = base64Data.trim();
+  for (const [, filename, base64Data] of matches) {
+    const cleanBase64 = base64Data.replace(/\r?\n/g, "").trim();
+    const binary = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
+    const kvKey = `${emailId}-${filename}`;
 
-      // Decode base64 → Uint8Array
-      const binary = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
+    if (env.EMAIL_ATTACHMENTS_KV?.put) {
+      /*await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
+        metadata: { contentType: "application/octet-stream", filename }
+      });*/
 
-      const kvKey = `${emailId}-${filename}`;
 
-      if (env.EMAIL_ATTACHMENTS_KV?.put) {
-        await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
-          metadata: {
-            contentType: "application/octet-stream",
-            filename
-          }
-        });
-      }
+await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
+  metadata: { contentType, filename }
+});
 
-      attachments.push({
-        filename,
-        contentType: "application/octet-stream",
-        size: binary.length,
-        kvKey
-      });
     }
+
+    attachments.push({
+      filename,
+      contentType: "application/octet-stream",
+      size: binary.length,
+      kvKey
+    });
   }
+}
+
+console.log("Attachments processed:", JSON.stringify(attachments, null, 2));
 
   return attachments;
 }
 
+// Call this from your inbound worker where you have the raw MIME text (e.g., `raw = await request.text()`)
+// emailId should be the id you use for the email record
+async function extractAttachmentsFromRaw(raw, env, emailId) {
+  const attachments = [];
+
+  // Diagnostics
+  console.log("RAW length:", raw ? raw.length : 0);
+  console.log("RAW head:", raw ? raw.slice(0, 800) : "");
+  console.log("RAW tail:", raw ? raw.slice(-800) : "");
+
+  if (!raw || !raw.includes("Content-Disposition: attachment")) {
+    console.log("No attachment header found in raw");
+    return attachments;
+  }
+
+  // Try to find boundary from the top Content-Type header
+  let boundary = null;
+  const ctMatch = raw.match(/Content-Type:[^\r\n]*boundary="?([^"\r\n;]+)"?/i);
+  if (ctMatch) {
+    boundary = ctMatch[1];
+    console.log("Detected boundary from header:", boundary);
+  } else {
+    // fallback: try to find any --_000_ or --_004_ style boundary lines
+    const bMatch = raw.match(/--(_\d+[A-Za-z0-9_-]+)/);
+    if (bMatch) {
+      boundary = bMatch[1];
+      console.log("Fallback boundary detected:", boundary);
+    }
+  }
+
+  if (!boundary) {
+    console.log("No boundary detected; trying tolerant regex fallback");
+    // tolerant fallback: find any lines that look like --<token>
+    const anyBoundary = raw.match(/^\s*--([A-Za-z0-9_\-]{8,})/m);
+    if (anyBoundary) {
+      boundary = anyBoundary[1];
+      console.log("Any-boundary fallback:", boundary);
+    }
+  }
+
+  // Build boundary delimiter
+  const delim = boundary ? `--${boundary}` : null;
+
+  // If we have a boundary, split into parts; otherwise fallback to regex scanning
+  let parts = [];
+  if (delim) {
+    // split on boundary lines (allow optional trailing --)
+    parts = raw.split(new RegExp(`\\r?\\n?${delim}(?:--)?\\r?\\n`, "g"));
+    console.log("Parts count (by boundary):", parts.length);
+  } else {
+    // fallback: split by common multipart markers
+    parts = raw.split(/\r?\n--[_A-Za-z0-9-]{6,}\r?\n/g);
+    console.log("Parts count (fallback split):", parts.length);
+  }
+
+  // For each part, check for attachment disposition and base64 block
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (!p || !/Content-Disposition:\s*attachment/i.test(p)) continue;
+
+    // Try to extract filename (quoted or unquoted)
+    let filename = null;
+    const fnMatch = p.match(/filename="?([^"\r\n;]+)"?/i);
+    if (fnMatch) filename = fnMatch[1].trim();
+
+    // Try to extract content-type if present
+    let contentType = "application/octet-stream";
+    const ctPart = p.match(/Content-Type:\s*([^\r\n;]+)/i);
+    if (ctPart) contentType = ctPart[1].trim();
+
+    // Find base64 block: look for Content-Transfer-Encoding: base64 then the following block until next boundary
+    const base64Match = p.match(/Content-Transfer-Encoding:\s*base64\s*\r?\n([\s\S]*)$/i);
+    let base64Data = null;
+    if (base64Match) {
+      base64Data = base64Match[1];
+      // strip trailing boundary markers if present
+      base64Data = base64Data.replace(/\r?\n--[_A-Za-z0-9-]{6,}.*$/s, "");
+      // remove any leading/trailing whitespace/newlines
+      base64Data = base64Data.replace(/^\s+|\s+$/g, "");
+    } else {
+      // Another fallback: try to capture the first long base64-looking block in the part
+      const alt = p.match(/([A-Za-z0-9+/=\r\n]{100,})/);
+      if (alt) base64Data = alt[1].replace(/\r?\n/g, "");
+    }
+
+    if (!base64Data) {
+      console.log(`Part ${i}: attachment header found but no base64 block for filename=${filename}`);
+      continue;
+    }
+
+    try {
+      // Clean base64 and decode
+      const clean = base64Data.replace(/\r?\n/g, "").trim();
+      const binary = Uint8Array.from(atob(clean), c => c.charCodeAt(0));
+      const safeFilename = filename || `attachment-${i}`;
+      const kvKey = `${emailId}-${safeFilename}`;
+
+      // KV put (ensure binding exists)
+      if (!env.EMAIL_ATTACHMENTS_KV || !env.EMAIL_ATTACHMENTS_KV.put) {
+        console.log("EMAIL_ATTACHMENTS_KV binding missing or not available");
+      } else {
+        /*await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
+          metadata: { filename: safeFilename, contentType }
+        });
+        await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary.buffer, {
+  metadata: { contentType, filename }
+});
+await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
+  metadata: { filename: safeFilename, contentType }
+});*/
+const clean = base64Data.replace(/\s+/g, "");
+const binary = Uint8Array.from(atob(clean), c => c.charCodeAt(0));
+const arrayBuffer = binary.slice().buffer;
+await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
+  metadata: { filename: safeFilename, contentType }
+});
+
+
+
+        console.log("kv_put OK for", kvKey);
+      }
+
+      attachments.push({
+        filename: safeFilename,
+        contentType,
+        size: binary.length,
+        kvKey
+      });
+    } catch (err) {
+      console.log("Error decoding/putting attachment:", err && err.stack ? err.stack : String(err));
+    }
+  }
+
+  console.log("Attachments processed (final):", JSON.stringify(attachments, null, 2));
+  return attachments;
+}
