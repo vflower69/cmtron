@@ -899,6 +899,9 @@ async function validateD1Schema(env) {
 async function processAttachments(event, env, emailId) {
   const attachments = [];
 
+  // --------------------------------------------------
+  // 1. Standard MIME attachments (event.body.parts)
+  // --------------------------------------------------
   if (event.body?.parts?.length) {
     for (const part of event.body.parts) {
       const isAttachment =
@@ -911,11 +914,13 @@ async function processAttachments(event, env, emailId) {
         const contentType = part.type || "application/octet-stream";
         const base64Data = part.data;
 
-        // Decode base64 to binary
+        // Decode base64 → Uint8Array
         const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-        // Store in KV for download
+        // KV key for download
         const kvKey = `${emailId}-${filename}`;
+
+        // Store binary in KV
         if (env.EMAIL_ATTACHMENTS_KV?.put) {
           await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
             metadata: { contentType, filename }
@@ -932,5 +937,45 @@ async function processAttachments(event, env, emailId) {
     }
   }
 
+  // --------------------------------------------------
+  // 2. Fallback: detect attachments inside raw MIME
+  //    (handles forwarded emails, nested MIME, etc.)
+  // --------------------------------------------------
+  if (typeof event.raw === "string" &&
+      event.raw.includes("Content-Disposition: attachment")) {
+
+    const matches = [
+      ...event.raw.matchAll(
+        /filename="([^"]+)"[\s\S]*?base64\s+([\s\S]+?)--/g
+      )
+    ];
+
+    for (const [, filename, base64Data] of matches) {
+      const cleanBase64 = base64Data.trim();
+
+      // Decode base64 → Uint8Array
+      const binary = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
+
+      const kvKey = `${emailId}-${filename}`;
+
+      if (env.EMAIL_ATTACHMENTS_KV?.put) {
+        await env.EMAIL_ATTACHMENTS_KV.put(kvKey, binary, {
+          metadata: {
+            contentType: "application/octet-stream",
+            filename
+          }
+        });
+      }
+
+      attachments.push({
+        filename,
+        contentType: "application/octet-stream",
+        size: binary.length,
+        kvKey
+      });
+    }
+  }
+
   return attachments;
 }
+
