@@ -95,46 +95,61 @@ export default {
     // ------------------------------------------------------------
     // Attachment download route: /api/attachments/:kvKey
     // ------------------------------------------------------------
-    if (path.startsWith("/api/attachments/") && request.method === "GET") {
-      const rawKey = path.replace("/api/attachments/", "");
-      const kvKey = decodeURIComponent(rawKey || "");
+    // ------------------------------------------------------------
+// Attachment download route: /api/attachments/:kvKey
+// ------------------------------------------------------------
+// ------------------------------------------------------------
+// Attachment download route: /api/attachments/:kvKey
+// ------------------------------------------------------------
+if (path.startsWith("/api/attachments/") && request.method === "GET") {
+  const rawKey = path.replace("/api/attachments/", "");
+  const kvKey = decodeURIComponent(rawKey || "");
 
-      // Basic safety validation
-      const SAFE_KEY_RE = /^[A-Za-z0-9._\-]{1,240}$/;
-      if (!SAFE_KEY_RE.test(kvKey)) {
-        return new Response(JSON.stringify({ error: "Invalid attachment key" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
+  // Basic safety validation
+  const SAFE_KEY_RE = /^[A-Za-z0-9._\-]{1,240}$/;
+  if (!SAFE_KEY_RE.test(kvKey)) {
+    return new Response(JSON.stringify({ error: "Invalid attachment key" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
 
-      try {
-        // Fetch binary file from KV
-        const file = await env.EMAIL_ATTACHMENTS_KV.get(kvKey, { type: "arrayBuffer" });
-        if (!file) {
-          return new Response("Attachment not found", { status: 404 });
-        }
+  try {
+    // Fetch binary + metadata together
+    const { value: file, metadata } = await env.EMAIL_ATTACHMENTS_KV.getWithMetadata(
+      kvKey,
+      "arrayBuffer"
+    );
+    /*const { value: file, metadata } = await env.EMAIL_ATTACHMENTS_KV.getWithMetadata(
+      kvKey,
+      "text"
+    );*/
 
-        // Fetch metadata (filename + contentType)
-        const metadata = await env.EMAIL_ATTACHMENTS_KV.get(kvKey, { type: "metadata" }) || {};
-        const filename = (metadata.filename || kvKey).replace(/"/g, "");
-        const contentType = metadata.contentType || "application/octet-stream";
-
-        return new Response(file, {
-          status: 200,
-          headers: {
-            "Content-Type": contentType,
-            "Content-Disposition": `attachment; filename="${filename}"`,
-            "Cache-Control": "public, max-age=31536000"
-          }
-        });
-      } catch (err) {
-        return new Response(
-          JSON.stringify({ error: "Failed to retrieve attachment", details: String(err) }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
-      }
+    if (!file) {
+      return new Response("Attachment not found", { status: 404 });
     }
+
+    const filename = (metadata?.filename || kvKey).replace(/"/g, "");
+    const contentType = metadata?.contentType || "application/octet-stream";
+    //const contentType = metadata?.contentType || "text/plain; charset=utf-8";
+
+    return new Response(file, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "public, max-age=31536000"
+      }
+    });
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: "Failed to retrieve attachment", details: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
+
+
 
     // --- ROUTES ---
     if (path === "/" && request.method === "GET") return dashboardHome(env);
@@ -322,7 +337,9 @@ async function inboundTable(env) {
           <td>${r.received_at}</td>
           <td>
             <a href="/email?id=${encodeURIComponent(r.id)}">View</a>
-            <button class="reply-btn" data-id="${r.id}" data-from="${escape(r.from_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button>
+            <!-- button class="reply-btn" data-id="${r.id}" data-from="${escape(r.from_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button -->
+            <button class="reply-btn" data-id="${r.id}" data-from="${escape(r.to_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button>
+
           </td>
         </tr>
       `).join("")}
@@ -392,7 +409,9 @@ async function searchEmails(env, url) {
           <td>${r.received_at}</td>
           <td>
             <a href="/email?id=${encodeURIComponent(r.id)}">View</a>
-            <button class="reply-btn" data-id="${r.id}" data-from="${escape(r.from_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button>
+            <!-- button class="reply-btn" data-id="${r.id}" data-from="${escape(r.from_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button -->
+            <button class="reply-btn" data-id="${r.id}" data-from="${escape(r.to_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button>
+
           </td>
         </tr>
       `).join("")}
@@ -482,46 +501,49 @@ async function emailDetail(env, url) {
     attachments = [];
   }
 
-  // Fetch replies for this email
+  // Fetch replies
   const replies = await env.EMAIL_DB.prepare(
     "SELECT * FROM replies WHERE email_id = ? ORDER BY sent_at DESC LIMIT 50"
   ).bind(id).all();
 
-  // Helper: file type icon
+  // File type icon helper
   function iconFor(filename) {
     const f = filename.toLowerCase();
-    if (f.endsWith(".png") || f.endsWith(".jpg") || f.endsWith(".jpeg") || f.endsWith(".gif")) return "🖼️";
+    if (f.match(/\.(png|jpg|jpeg|gif)$/)) return "🖼️";
     if (f.endsWith(".pdf")) return "📄";
     if (f.endsWith(".txt")) return "📘";
     if (f.endsWith(".zip")) return "📦";
     return "📁";
   }
 
-  // Build attachment list HTML
+  // Attachment HTML
   const attachmentHtml = attachments.length
     ? attachments.map(a => `
-        <div class="attachment-item">
-          <span>${iconFor(a.filename)} ${a.filename} (${a.size} bytes)</span>
-          <a class="download-btn"
-             href="/api/attachments/${encodeURIComponent(a.kvKey)}"
-             download="${a.filename}">
-            Download
-          </a>
+        <div class="attachment-item" style="margin-bottom:16px;">
+          <div>
+            ${iconFor(a.filename)} <strong>${a.filename}</strong>
+            <span style="color:var(--muted)">(${a.size} bytes)</span>
+            <a href="/api/attachments/${encodeURIComponent(a.kvKey)}"
+               download="${a.filename}"
+               style="margin-left:12px;color:#1fd1b5;">
+              Download
+            </a>
+          </div>
 
           ${a.filename.toLowerCase().match(/\.(png|jpg|jpeg|gif)$/)
             ? `<img src="/api/attachments/${encodeURIComponent(a.kvKey)}"
-                   style="max-width:300px;margin-top:10px;border:1px solid #ccc;border-radius:6px;" />`
+                   style="max-width:320px;margin-top:10px;border-radius:6px;border:1px solid var(--border);" />`
             : ""
           }
 
           ${a.filename.toLowerCase().endsWith(".pdf")
             ? `<iframe src="/api/attachments/${encodeURIComponent(a.kvKey)}"
-                       style="width:100%;height:480px;margin-top:10px;border:1px solid #ccc;border-radius:6px;"></iframe>`
+                       style="width:100%;height:480px;margin-top:10px;border-radius:6px;border:1px solid var(--border);"></iframe>`
             : ""
           }
         </div>
       `).join("")
-    : `<p>No attachments</p>`;
+    : `<p style="color:var(--muted)">No attachments</p>`;
 
   return html(`
     <header><h1>Email Detail</h1><a href="/inbound">← Back</a></header>
@@ -553,7 +575,7 @@ async function emailDetail(env, url) {
       <div style="margin-top:8px;">
         <button id="sendReplyBtn"
                 data-email-id="${row.id}"
-                data-from="contact@cellmetron.com">
+                data-from="${row.to_addr}">
           Send Reply
         </button>
         <span id="replyStatus" style="margin-left:12px;color:var(--muted)"></span>
@@ -581,36 +603,8 @@ async function emailDetail(env, url) {
           `).join('')
       }
     </section>
-
-    <style>
-      .attachment-item {
-        margin-bottom: 20px;
-        padding: 10px;
-        background: #f7f7f7;
-        border-radius: 8px;
-      }
-      .download-btn {
-        display: inline-block;
-        margin-left: 12px;
-        padding: 6px 10px;
-        background: #1fd1b5;
-        color: #fff;
-        border-radius: 6px;
-        text-decoration: none;
-      }
-      .download-btn:hover {
-        background: #17b39a;
-      }
-      pre {
-        white-space: pre-wrap;
-        background: #f0f0f0;
-        padding: 12px;
-        border-radius: 8px;
-      }
-    </style>
   `);
 }
-
 
 /* -------------------------
    Reply handler
@@ -633,7 +627,8 @@ async function handleReply(request, env) {
 
     const to = row.from_addr;
     const subject = `Re: ${row.subject}`;
-    const fromAddr = from || "contact@cellmetron.com";
+    //const fromAddr = from || "contact@cellmetron.com";
+    const fromAddr = from || row.to_addr;
     const text = replyText;
 
     const sendPayload = { from: fromAddr, to, subject, text, originalEmailId: emailId };
@@ -870,7 +865,8 @@ function html(content, opts = {}) {
             e.target.textContent = 'Sending…';
 
             try {
-              const result = await postReply(id, replyText, 'contact@cellmetron.com');
+              //const result = await postReply(id, replyText, 'contact@cellmetron.com');
+              const result = await postReply(id, replyText, from);
               if (result && result.ok) {
                 alert('Reply sent');
                 location.reload();
@@ -890,7 +886,8 @@ function html(content, opts = {}) {
         document.addEventListener('click', async (e) => {
           if (e.target && e.target.id === 'sendReplyBtn') {
             const emailId = e.target.getAttribute('data-email-id');
-            const from = e.target.getAttribute('data-from') || 'contact@cellmetron.com';
+            //const from = e.target.getAttribute('data-from') || 'contact@cellmetron.com';
+            const from = e.target.getAttribute('data-from');
             const textarea = document.getElementById('replyText');
             const statusEl = document.getElementById('replyStatus');
             const text = textarea.value.trim();
