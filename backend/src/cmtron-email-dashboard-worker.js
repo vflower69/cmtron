@@ -95,12 +95,6 @@ export default {
     // ------------------------------------------------------------
     // Attachment download route: /api/attachments/:kvKey
     // ------------------------------------------------------------
-    // ------------------------------------------------------------
-// Attachment download route: /api/attachments/:kvKey
-// ------------------------------------------------------------
-// ------------------------------------------------------------
-// Attachment download route: /api/attachments/:kvKey
-// ------------------------------------------------------------
 if (path.startsWith("/api/attachments/") && request.method === "GET") {
   const rawKey = path.replace("/api/attachments/", "");
   const kvKey = decodeURIComponent(rawKey || "");
@@ -167,6 +161,36 @@ if (path.startsWith("/api/attachments/") && request.method === "GET") {
 
     // Reply endpoint
     if (path === "/reply" && request.method === "POST") return handleReply(request, env);
+
+    // Delete endpoint
+    if (path === "/delete" && request.method === "POST") {
+      const { id } = await request.json();
+      try {
+        // Delete from D1
+        await env.EMAIL_DB.prepare(
+          `DELETE FROM emails WHERE id = ?`
+        ).bind(id).run();
+        // Delete attachments from KV (if stored with prefix id-*)
+        if (env.EMAIL_ATTACHMENTS_KV) {
+          const prefix = `${id}-`;
+          const list = await env.EMAIL_ATTACHMENTS_KV.list({ prefix });
+          for (const item of list.keys) {
+            await env.EMAIL_ATTACHMENTS_KV.delete(item.name);
+          }
+        }
+        // Delete log from KV
+        if (env.EMAIL_LOG_KV) {
+          await env.EMAIL_LOG_KV.delete(id);
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
 
     return new Response("Not found", { status: 404 });
   }
@@ -339,11 +363,42 @@ async function inboundTable(env) {
             <a href="/email?id=${encodeURIComponent(r.id)}">View</a>
             <!-- button class="reply-btn" data-id="${r.id}" data-from="${escape(r.from_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button -->
             <button class="reply-btn" data-id="${r.id}" data-from="${escape(r.to_addr)}" data-subject="${escape(r.subject)}" style="margin-left:8px;">Reply</button>
+            <button class="delete-btn" data-id="${r.id}" style="margin-left:8px;color:red;">Delete</button>
 
           </td>
         </tr>
       `).join("")}
     </table>
+    <script>
+      document.addEventListener('click', async (e) => {
+        if (e.target && e.target.matches('.delete-btn')) {
+          const id = e.target.getAttribute('data-id');
+          if (!confirm('Delete email ' + id + '?')) return;
+          e.target.disabled = true;
+          const originalText = e.target.textContent;
+          e.target.textContent = 'Deleting…';
+          try {
+            const res = await fetch('/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id })
+            });
+            const result = await res.json();
+            if (result.ok) {
+              alert('Deleted');
+              location.reload();
+            } else {
+              alert('Delete failed: ' + (result.error || result.status));
+            }
+          } catch (err) {
+            alert('Error: ' + err);
+          } finally {
+            e.target.disabled = false;
+            e.target.textContent = originalText;
+          }
+        }
+      });
+    </script>
   `);
 }
 
@@ -429,6 +484,8 @@ async function departmentAnalytics(env) {
          WHEN to_addr LIKE '%retail@cellmetron.com%'   THEN 'Retail'
          WHEN to_addr LIKE '%investors@cellmetron.com%'THEN 'Investors'
          WHEN to_addr LIKE '%support@cellmetron.com%'  THEN 'Support'
+         WHEN to_addr LIKE '%info@cellmetron.com%'  THEN 'Info'
+         WHEN to_addr LIKE '%hr@cellmetron.com%'  THEN 'HR'
          ELSE 'Other'
        END AS department,
        COUNT(*) AS total,
@@ -912,6 +969,7 @@ function html(content, opts = {}) {
             }
           }
         });
+
       </script>
     </body>
     </html>
