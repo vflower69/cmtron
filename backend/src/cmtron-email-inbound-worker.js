@@ -68,7 +68,7 @@ console.log("Contains attachment header:", rawMime.includes("Content-Disposition
 // Call the robust extractor that splits by boundary and writes to KV
 const attachments = await extractAttachmentsFromRaw(rawMime, env, id);
 
-console.log("Attachments saved to D1:", JSON.stringify(attachments));
+//console.log("Attachments saved to D1:", JSON.stringify(attachments));
 
       // --------------------------------------------------
       // URL extraction
@@ -264,6 +264,31 @@ try {
   }
 }
 
+// --------------------------------------------------
+// Auto‑BCC notification (runs for ALL inbound mail)
+// --------------------------------------------------
+try {
+  const bccAddress = "mikeliu89@hotmail.com";
+  // Clean body extraction (no metadata, no attachments)
+//const rawBody = await extractEmailBody(event);
+//const bodyTxt = normalizeBodyToText(rawBody);
+const bodyTxt = extractReadableBody(rawMime);
+
+  if (env.OUTBOUND_WORKER_URL) {
+    await fetch(env.OUTBOUND_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: safeTo,                         // the Cellmetron address that received the email
+        to: bccAddress,                       // your notification inbox
+        subject: `[Notification] New email to ${safeTo}`,
+        text: bodyTxt                        // full email body
+      })
+    });
+  }
+} catch (err) {
+  console.log("Auto‑BCC error:", err);
+}
 
       // --------------------------------------------------
       // Auth / risk‑based rejection / routing
@@ -820,15 +845,19 @@ function computeAuthScore({ dkim, spf, dmarc, arc }, spamScore) {
 function routeDepartment(to, isSpam) {
   if (isSpam) return "spam@cellmetron.com";
   if (to.includes("research@cellmetron.com"))
-    return "research.team@cellmetron.com";
+    return "research@cellmetron.com";
   if (to.includes("press@cellmetron.com"))
-    return "media@cellmetron.com";
+    return "press@cellmetron.com";
   if (to.includes("retail@cellmetron.com"))
-    return "sales@cellmetron.com";
+    return "retail@cellmetron.com";
   if (to.includes("investors@cellmetron.com"))
-    return "investor.relations@cellmetron.com";
+    return "investor@cellmetron.com";
   if (to.includes("support@cellmetron.com"))
-    return "support.queue@cellmetron.com";
+    return "support@cellmetron.com";
+  if (to.includes("info@cellmetron.com"))
+    return "info@cellmetron.com";
+  if (to.includes("hr@cellmetron.com"))
+    return "hr@cellmetron.com";
   return "mikeliu89@hotmail.com";
 }
 
@@ -870,6 +899,54 @@ function buildAutoReply(to, from, subject) {
         "Thanks for contacting Cellmetron Support.\n\n" +
         "Your ticket has been received. We aim to respond within 24 hours.\n\n" +
         "— Cellmetron Support"
+    };
+  }
+
+    if (to.includes("hr@cellmetron.com")) {
+    return {
+      to: from,
+      from: "hr@cellmetron.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting Cellmetron HR.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— Cellmetron HR"
+    };
+  }
+
+    if (to.includes("info@cellmetron.com")) {
+    return {
+      to: from,
+      from: "info@cellmetron.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting Cellmetron.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— Cellmetron"
+    };
+  }
+
+    if (to.includes("retail@cellmetron.com")) {
+    return {
+      to: from,
+      from: "retail@cellmetron.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting Cellmetron Retail Team.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— Cellmetron Retail Team"
+    };
+  }
+
+    if (to.includes("investors@cellmetron.com")) {
+    return {
+      to: from,
+      from: "investors@cellmetron.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting Cellmetron Investors Team.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— Cellmetron Investor Relations Team"
     };
   }
 
@@ -967,14 +1044,9 @@ await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
   metadata: { contentType, filename }
 });*/
 
-
-
-
 await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
   metadata: { contentType, filename }
 });
-
-
 
         }
 
@@ -1150,8 +1222,6 @@ await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
   metadata: { filename: safeFilename, contentType }
 });
 
-
-
         console.log("kv_put OK for", kvKey);
       }
 
@@ -1168,4 +1238,32 @@ await env.EMAIL_ATTACHMENTS_KV.put(kvKey, arrayBuffer, {
 
   console.log("Attachments processed (final):", JSON.stringify(attachments, null, 2));
   return attachments;
+}
+
+function extractReadableBody(rawMime) {
+  // 1. Try text/plain first
+  const plainMatch = rawMime.match(
+    /Content-Type:\s*text\/plain[^]*?\r?\n\r?\n([^]*?)(?=\r?\n--)/i
+  );
+  if (plainMatch && plainMatch[1]) {
+    return plainMatch[1]
+      .replace(/=\r?\n/g, "")        // remove quoted-printable soft breaks
+      .replace(/=([0-9A-F]{2})/gi, (m, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .trim();
+  }
+
+  // 2. Fallback: extract text/html
+  const htmlMatch = rawMime.match(
+    /Content-Type:\s*text\/html[^]*?\r?\n\r?\n([^]*?)(?=\r?\n--)/i
+  );
+  if (htmlMatch && htmlMatch[1]) {
+    const html = htmlMatch[1]
+      .replace(/=\r?\n/g, "")
+      .replace(/=([0-9A-F]{2})/gi, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
+
+    // strip HTML tags
+    return html.replace(/<[^>]+>/g, "").trim();
+  }
+
+  return "(empty)";
 }
