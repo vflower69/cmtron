@@ -56,6 +56,7 @@ export default {
       from,
       originalTo,
       subject,
+      text,
       spamScore,
       isSpam,
       sentAt: new Date().toISOString()
