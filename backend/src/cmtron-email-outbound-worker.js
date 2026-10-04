@@ -27,6 +27,7 @@ export default {
   }
 };
 */
+
 // HTTP Worker (cmtron-email-outbound)
 export default {
   async fetch(request, env) {
@@ -34,19 +35,67 @@ export default {
       return new Response("Use POST", { status: 405 });
     }
 
-    const data = await request.json();
+    let data;
+    try {
+      data = await request.json();
+    } catch (err) {
+      return new Response("Invalid JSON", { status: 400 });
+    }
+
     const {
       to,
       from,
       originalTo,
       subject,
       text,
+      attachments = [],
       spamScore,
       isSpam,
       emailId
     } = data;
 
-    // --- 1. Log send attempt to KV ---
+// --- DEBUG: Print raw incoming attachments ---
+    console.log("RAW incoming attachments:", JSON.stringify(attachments, null, 2));
+
+    // --- 1. Prepare attachments (sanitize MIME + base64 encode) ---
+    const preparedAttachments = [];
+
+    if (Array.isArray(attachments)) {
+      for (const a of attachments) {
+        const bytes = new Uint8Array(a.content || []);
+/* No need
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+*/
+        const safeMime =
+          a.contentType && a.contentType.includes("/")
+            ? a.contentType
+            : "application/octet-stream";
+
+        // --- DEBUG: Print MIME decision ---
+        console.log("Attachment:", a.filename);
+        console.log("Original contentType:", a.contentType);
+        console.log("Safe MIME used:", safeMime);
+
+        preparedAttachments.push({
+          filename: a.filename || "attachment",
+          //content: base64,
+          content: bytes,                 // ⭐ raw bytes, NOT base64
+          //contentType: safeMime,     // ⭐ Cloudflare requires contentType
+          //mimeType: safeMime
+          type: safeMime,
+          disposition: "attachment"   // ✅ required by Cloudflare
+        });
+      }
+    }
+
+        // --- DEBUG: Print final payload sent to Cloudflare ---
+    console.log("Prepared attachments:", JSON.stringify(preparedAttachments, null, 2));
+
+    // --- 2. Log send attempt to KV (log sanitized attachments) ---
     const sendId = `send-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     await env.EMAIL_SEND_LOG_KV.put(sendId, JSON.stringify({
@@ -56,23 +105,32 @@ export default {
       from,
       originalTo,
       subject,
+      text,
+      attachments: preparedAttachments,
       spamScore,
       isSpam,
       sentAt: new Date().toISOString()
     }));
 
-    // --- 2. Send via Cloudflare Email API ---
+    console.log("Final SEND_EMAIL payload:", JSON.stringify(preparedAttachments, null, 2));
+
+    // --- 3. Send via Cloudflare Email API ---
     try {
       await env.SEND_EMAIL.send({
         from: from || "noreply@cellmetron.com",
         to,
         subject,
-        text
+        text,
+        attachments: preparedAttachments
       });
 
-      return new Response("Email sent", { status: 200 });
+      return new Response(
+        JSON.stringify({ ok: true }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+
     } catch (err) {
-      // --- 3. Error logging to D1 ---
+            console.log("Cloudflare SEND_EMAIL error:", String(err));
       await env.EMAIL_DB.prepare(
         `INSERT INTO send_errors (id, email_id, to_addr, error, occurred_at)
          VALUES (?, ?, ?, ?, ?)`
@@ -84,7 +142,10 @@ export default {
         new Date().toISOString()
       ).run();
 
-      return new Response("Failed to send email", { status: 500 });
+      return new Response(
+        JSON.stringify({ ok: false, error: String(err) }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
   }
 };
