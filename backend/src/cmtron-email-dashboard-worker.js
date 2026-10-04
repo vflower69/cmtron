@@ -924,12 +924,14 @@ async function chartsPage(env) {
   const deptRows = await env.EMAIL_DB.prepare(
     `SELECT
        CASE
-         WHEN to_addr LIKE '%research@cellmetron.com%' THEN 'Research'
-         WHEN to_addr LIKE '%press@cellmetron.com%'    THEN 'Press'
-         WHEN to_addr LIKE '%retail@cellmetron.com%'   THEN 'Retail'
-         WHEN to_addr LIKE '%investors@cellmetron.com%'THEN 'Investors'
-         WHEN to_addr LIKE '%support@cellmetron.com%'  THEN 'Support'
-         ELSE 'Other'
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
+        ELSE 'Other'
        END AS department,
        COUNT(*) AS total
      FROM emails
@@ -973,9 +975,6 @@ async function chartsPage(env) {
 /* -----------------------------
    Composite new email page
    ----------------------------- */
-/* -----------------------------
-   Compose new email page (simplified)
-   ----------------------------- */
 async function composePage(env) {
   return html(`
     <header><h1>Compose New Email</h1><a href="/">← Back</a></header>
@@ -987,17 +986,23 @@ async function composePage(env) {
         <option value="info@cellmetron.com">info@cellmetron.com</option>
         <option value="investors@cellmetron.com">investors@cellmetron.com</option>
         <option value="press@cellmetron.com">press@cellmetron.com</option>
-        <option value="researchl@cellmetron.com">research@cellmetron.com</option>
+        <option value="research@cellmetron.com">research@cellmetron.com</option>
         <option value="retail@cellmetron.com">retail@cellmetron.com</option>
         <option value="support@cellmetron.com">support@cellmetron.com</option>
       </select>
-<br>
+
+      <br>
+
       <label>To:</label>
       <input id="toAddr" type="email" placeholder="recipient@example.com">
-<br>
+
+      <br>
+
       <label>Subject:</label>
       <input id="subject" type="text">
-<br>
+
+      <br>
+
       <label>Body:</label>
       <div id="bodyEditor"
           contenteditable="true"
@@ -1012,6 +1017,13 @@ async function composePage(env) {
         <button onclick="addLink()">Link</button>
       </div>
 
+      <br>
+
+      <label>Attachments:</label>
+      <input id="attachments" type="file" multiple>
+
+      <br><br>
+
       <button id="sendBtn">Send Email</button>
       <p id="sendStatus"></p>
     </div>
@@ -1022,7 +1034,6 @@ async function composePage(env) {
         if (url) document.execCommand("createLink", false, url);
       }
 
-      // Send email
       document.getElementById('sendBtn').addEventListener('click', async () => {
         const from = document.getElementById('fromAddr').value;
         const to = document.getElementById('toAddr').value.trim();
@@ -1030,10 +1041,24 @@ async function composePage(env) {
         const html = document.getElementById('bodyEditor').innerHTML.trim();
         const text = document.getElementById('bodyEditor').innerText.trim();
         const status = document.getElementById('sendStatus');
+        const files = document.getElementById('attachments').files;
 
         if (!to) return alert('Missing To address');
         if (!subject) return alert('Missing subject');
         if (!html && !text) return alert('Message body is empty');
+
+        // --- Build attachments array ---
+        const attachments = [];
+        for (const file of files) {
+          const buf = await file.arrayBuffer();
+          attachments.push({
+            filename: file.name,
+            content: Array.from(new Uint8Array(buf)),
+            contentType: file.type && file.type.includes("/")
+              ? file.type
+              : "application/octet-stream"   // ⭐ guaranteed valid
+          });
+        }
 
         const res = await fetch('/send', {
           method: 'POST',
@@ -1042,8 +1067,8 @@ async function composePage(env) {
             from,
             to,
             subject,
-            html,
-            text
+            text,
+            attachments
           })
         });
 
@@ -1060,6 +1085,7 @@ async function composePage(env) {
     </script>
   `);
 }
+
 
 
 
