@@ -162,7 +162,26 @@ if (path.startsWith("/api/attachments/") && request.method === "GET") {
     // Reply endpoint
     if (path === "/reply" && request.method === "POST") return handleReply(request, env);
 
-    // Delete endpoint
+    // Composite new email
+    if (path === "/compose" && request.method === "GET") return composePage(env);
+    if (path === "/send" && request.method === "POST") return handleSend(request, env);
+
+    // Send attachments
+    if (path === "/sent-attachments" && request.method === "GET") {
+      return sentAttachmentsPage(env);
+    }
+
+    //Sent folder
+    if (path === "/sent" && request.method === "GET") {
+      return sentPage(request, env);
+    }
+
+
+    if (path.startsWith("/attachments/")) {
+      return serveAttachment(request, env);
+    }
+
+    // Delete endpoint - inbound email
     if (path === "/delete" && request.method === "POST") {
       const { id } = await request.json();
       try {
@@ -191,6 +210,51 @@ if (path.startsWith("/api/attachments/") && request.method === "GET") {
         });
       }
     }
+
+     // Delete endpoint - outbound email
+    if (url.pathname === '/delete-outbound' && request.method === 'POST') {
+      const { id } = await request.json();
+
+      try {
+        // Delete from KV
+        await env.EMAIL_SEND_LOG_KV.delete(id);
+
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+      } catch (err) {
+        return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+
+    // View sent email details
+    if (url.pathname === '/outbound-view' && request.method === 'GET') {
+      const id = url.searchParams.get('id');
+      if (!id) return new Response('Missing id', { status: 400 });
+
+      const data = await env.EMAIL_SEND_LOG_KV.get(id);
+      if (!data) return new Response('Not found', { status: 404 });
+
+      const d = JSON.parse(data);
+
+      return html(`
+        <header><h1>Outbound Message</h1><a href="/outbound">← Back</a></header>
+        <section>
+          <p><strong>From:</strong> ${d.from}</p>
+          <p><strong>To:</strong> ${d.to}</p>
+          <p><strong>Subject:</strong> ${escape(d.subject)}</p>
+          <p><strong>Sent At:</strong> ${d.sentAt}</p>
+          <hr>
+          <pre>${escape(d.text || '(no body)')}</pre>
+        </section>
+      `);
+    }
+
+
 
     return new Response("Not found", { status: 404 });
   }
@@ -237,7 +301,26 @@ async function dashboardHome(env) {
       <h1>Cellmetron Email Dashboard</h1>
       <p>Operational view of inbound, outbound, spam, and routing.</p>
     </header>
+    <section style="margin-top:24px;">
+      <h2>Navigation</h2>
+      <nav class="nav-links">
+        <a href="/compose">Compose new email</a>
+        <a href="/analytics">Department analytics</a>
+        <a href="/inbound">Inbound logs</a>
+        <a href="/outbound">Outbound logs</a>
+        <a href="/errors">Send errors</a>
+        <a href="/export?type=inbound">Export CSV (inbound)</a>
+      </nav>
+    </section>
 
+    <section>
+      <h2>Search</h2>
+      <form action="/search" class="search-form">
+        <input name="q" placeholder="Search subject, sender, body…" />
+        <button>Search</button>
+      </form>
+    </section>
+    
     <section class="cards">
       <div class="card">
         <h2>Inbound Emails</h2>
@@ -266,25 +349,6 @@ async function dashboardHome(env) {
         <canvas id="deptChart" width="400" height="240"></canvas>
       </div>
       <a class="small-link" href="/charts">Open charts page →</a>
-    </section>
-
-    <section>
-      <h2>Navigation</h2>
-      <nav class="nav-links">
-        <a href="/analytics">Department analytics</a>
-        <a href="/inbound">Inbound logs</a>
-        <a href="/outbound">Outbound logs</a>
-        <a href="/errors">Send errors</a>
-        <a href="/export?type=inbound">Export CSV (inbound)</a>
-      </nav>
-    </section>
-
-    <section>
-      <h2>Search</h2>
-      <form action="/search" class="search-form">
-        <input name="q" placeholder="Search subject, sender, body…" />
-        <button>Search</button>
-      </form>
     </section>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -404,6 +468,7 @@ async function inboundTable(env) {
 
 
 // outbound table (KV)
+/*
 async function outboundTable(env) {
   const list = await env.EMAIL_SEND_LOG_KV.list({ limit: 200 });
   const rows = await Promise.all(list.keys.map(async key => JSON.parse(await env.EMAIL_SEND_LOG_KV.get(key.name))));
@@ -423,6 +488,86 @@ async function outboundTable(env) {
     </table>
   `);
 }
+*/
+// outbound table (KV)
+async function outboundTable(env) {
+  const list = await env.EMAIL_SEND_LOG_KV.list({ limit: 200 });
+  const rows = await Promise.all(
+    list.keys.map(async key => JSON.parse(await env.EMAIL_SEND_LOG_KV.get(key.name)))
+  );
+
+  return html(`
+    <header><h1>Outbound Send Attempts</h1><a href="/">← Back</a></header>
+
+    <table>
+      <tr>
+        <th>ID</th>
+        <th>Email ID</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Subject</th>
+        <th>Sent At</th>
+        <th>Actions</th>
+      </tr>
+
+      ${rows.map(d => `
+        <tr>
+          <td>${d.sendId}</td>
+          <td>${d.emailId}</td>
+          <td>${d.from || "(unknown)"}</td>
+          <td>${d.to}</td>
+          <td>${escape(d.subject)}</td>
+          <td>${d.sentAt}</td>
+          <td>
+            <a href="/outbound-view?id=${encodeURIComponent(d.sendId)}">View</a>
+            <button class="delete-outbound-btn"
+                    data-id="${d.sendId}"
+                    style="margin-left:8px;color:red;">
+              Delete
+            </button>
+          </td>
+        </tr>
+      `).join("")}
+    </table>
+
+    <script>
+      document.addEventListener('click', async (e) => {
+        if (e.target && e.target.matches('.delete-outbound-btn')) {
+          const id = e.target.getAttribute('data-id');
+
+          if (!confirm(\`Delete outbound record \${id}?\`)) return;
+
+          e.target.disabled = true;
+          const originalText = e.target.textContent;
+          e.target.textContent = 'Deleting…';
+
+          try {
+            const res = await fetch('/delete-outbound', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id })
+            });
+
+            const result = await res.json();
+
+            if (result.ok) {
+              alert('Deleted');
+              location.reload();
+            } else {
+              alert('Delete failed: ' + (result.error || result.status));
+            }
+          } catch (err) {
+            alert('Error: ' + err);
+          } finally {
+            e.target.disabled = false;
+            e.target.textContent = originalText;
+          }
+        }
+      });
+    </script>
+  `);
+}
+
 
 // errors table
 async function errorTable(env) {
@@ -779,12 +924,14 @@ async function chartsPage(env) {
   const deptRows = await env.EMAIL_DB.prepare(
     `SELECT
        CASE
-         WHEN to_addr LIKE '%research@cellmetron.com%' THEN 'Research'
-         WHEN to_addr LIKE '%press@cellmetron.com%'    THEN 'Press'
-         WHEN to_addr LIKE '%retail@cellmetron.com%'   THEN 'Retail'
-         WHEN to_addr LIKE '%investors@cellmetron.com%'THEN 'Investors'
-         WHEN to_addr LIKE '%support@cellmetron.com%'  THEN 'Support'
-         ELSE 'Other'
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
+        ELSE 'Other'
        END AS department,
        COUNT(*) AS total
      FROM emails
@@ -799,6 +946,8 @@ async function chartsPage(env) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script -->
+
     <script>
       const spamRows = ${JSON.stringify(spamRows.results.reverse())};
       const deptRows = ${JSON.stringify(deptRows.results)};
@@ -822,6 +971,283 @@ async function chartsPage(env) {
     </script>
   `, { headers: { "Content-Type": "text/html; charset=UTF-8" }});
 }
+
+/* -----------------------------
+   Composite new email page
+   ----------------------------- */
+async function composePage(env) {
+  return html(`
+    <header><h1>Compose New Email</h1><a href="/">← Back</a></header>
+
+    <div class="compose">
+      <label>From:</label>
+      <select id="fromAddr">
+        <option value="hr@cellmetron.com">hr@cellmetron.com</option>
+        <option value="info@cellmetron.com">info@cellmetron.com</option>
+        <option value="investors@cellmetron.com">investors@cellmetron.com</option>
+        <option value="press@cellmetron.com">press@cellmetron.com</option>
+        <option value="research@cellmetron.com">research@cellmetron.com</option>
+        <option value="retail@cellmetron.com">retail@cellmetron.com</option>
+        <option value="support@cellmetron.com">support@cellmetron.com</option>
+      </select>
+
+      <br>
+
+      <label>To:</label>
+      <input id="toAddr" type="email" placeholder="recipient@example.com">
+
+      <br>
+
+      <label>Subject:</label>
+      <input id="subject" type="text">
+
+      <br>
+
+      <label>Body:</label>
+      <div id="bodyEditor"
+          contenteditable="true"
+          style="min-height:200px;padding:10px;border:1px solid var(--border);
+                  border-radius:8px;background:rgba(15,23,42,0.4);">
+      </div>
+
+      <div class="toolbar" style="margin-bottom:8px;">
+        <button onclick="document.execCommand('bold')">Bold</button>
+        <button onclick="document.execCommand('italic')">Italic</button>
+        <button onclick="document.execCommand('underline')">Underline</button>
+        <button onclick="addLink()">Link</button>
+      </div>
+
+      <br>
+
+      <label>Attachments:</label>
+      <input id="attachments" type="file" multiple>
+
+      <br><br>
+
+      <button id="sendBtn">Send Email</button>
+      <p id="sendStatus"></p>
+    </div>
+
+    <script>
+      function addLink() {
+        const url = prompt("Enter URL:");
+        if (url) document.execCommand("createLink", false, url);
+      }
+
+      document.getElementById('sendBtn').addEventListener('click', async () => {
+        const from = document.getElementById('fromAddr').value;
+        const to = document.getElementById('toAddr').value.trim();
+        const subject = document.getElementById('subject').value.trim();
+        const html = document.getElementById('bodyEditor').innerHTML.trim();
+        const text = document.getElementById('bodyEditor').innerText.trim();
+        const status = document.getElementById('sendStatus');
+        const files = document.getElementById('attachments').files;
+
+        if (!to) return alert('Missing To address');
+        if (!subject) return alert('Missing subject');
+        if (!html && !text) return alert('Message body is empty');
+
+        // --- Build attachments array ---
+        const attachments = [];
+        for (const file of files) {
+          const buf = await file.arrayBuffer();
+          attachments.push({
+            filename: file.name,
+            content: Array.from(new Uint8Array(buf)),
+            contentType: file.type && file.type.includes("/")
+              ? file.type
+              : "application/octet-stream"   // ⭐ guaranteed valid
+          });
+        }
+
+        const res = await fetch('/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from,
+            to,
+            subject,
+            text,
+            attachments
+          })
+        });
+
+        const result = await res.json();
+
+        if (result.ok) {
+          status.textContent = "Sent!";
+          status.style.color = "lime";
+        } else {
+          status.textContent = "Failed: " + result.error;
+          status.style.color = "red";
+        }
+      });
+    </script>
+  `);
+}
+
+
+
+
+/* ----------------------------
+   Send out email
+   ---------------------------- */
+async function handleSend(request, env) {
+  const { from, to, subject, text, attachments } = await request.json();
+
+  try {
+    const res = await fetch(env.OUTBOUND_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to,
+        subject,
+        text,
+        attachments
+      })
+    });
+
+    const body = await res.text();
+
+    if (!res.ok) {
+      return new Response(JSON.stringify({ ok: false, error: body }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json" }
+    });
+
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
+
+/* ---------------------
+   Serve Attachment
+   --------------------- */
+async function serveAttachment(request, env) {
+  const key = decodeURIComponent(request.url.split("/attachments/")[1]);
+  const obj = await env.ATTACHMENTS_BUCKET.get(key);
+
+  if (!obj) return new Response("Not found", { status: 404 });
+
+  return new Response(obj.body, {
+    headers: {
+      "Content-Type": obj.httpMetadata?.contentType || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000"
+    }
+  });
+}
+
+
+/* ----------------------------
+   Send attachments viewer page
+   ---------------------------- */
+async function sentAttachmentsPage(env) {
+  const list = await env.EMAIL_SEND_LOG_KV.list({ prefix: "send-" });
+
+  const rows = [];
+  for (const k of list.keys) {
+    const val = await env.EMAIL_SEND_LOG_KV.get(k.name, "json");
+    if (!val || !val.attachmentLinks) continue;
+
+    for (const a of val.attachmentLinks) {
+      rows.push({
+        sendId: val.sendId,
+        to: val.to,
+        subject: val.subject,
+        filename: a.filename,
+        url: a.url,
+        sentAt: val.sentAt
+      });
+    }
+  }
+
+  return html(`
+    <header><h1>Sent Attachments</h1><a href="/">← Back</a></header>
+    <table>
+      <tr><th>Send ID</th><th>To</th><th>Subject</th><th>Filename</th><th>Preview</th><th>Sent At</th></tr>
+      ${rows.map(r => `
+        <tr>
+          <td>${r.sendId}</td>
+          <td>${escape(r.to)}</td>
+          <td>${escape(r.subject)}</td>
+          <td>${escape(r.filename)}</td>
+          <td>
+            ${r.filename.match(/\\.(png|jpg|jpeg|gif)$/i)
+              ? `<img src="${r.url}" style="max-width:120px;border-radius:6px;">`
+              : r.filename.endsWith(".pdf")
+                ? `<iframe src="${r.url}" style="width:160px;height:120px;border:none;"></iframe>`
+                : `<a href="${r.url}" target="_blank">Download</a>`
+            }
+          </td>
+          <td>${r.sentAt}</td>
+        </tr>
+      `).join("")}
+    </table>
+  `);
+}
+
+
+/*
+   Sent Page
+   */
+async function sentPage(request, env) {
+  const url = new URL(request.url);
+  const page = parseInt(url.searchParams.get("page") || "1");
+  const pageSize = 20;
+
+  const list = await env.EMAIL_SEND_LOG_KV.list({ prefix: "send-" });
+  const all = list.keys.map(k => k.name);
+
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const slice = all.slice(start, end);
+
+  const rows = [];
+  for (const key of slice) {
+    const val = await env.EMAIL_SEND_LOG_KV.get(key, "json");
+    if (val) rows.push(val);
+  }
+
+  const totalPages = Math.ceil(all.length / pageSize);
+
+  return html(`
+    <header><h1>Sent Emails</h1><a href="/">← Back</a></header>
+
+    <div class="pagination">
+      ${Array.from({ length: totalPages }, (_, i) => `
+        <a href="/sent?page=${i+1}" 
+           style="margin-right:6px;${i+1===page?'font-weight:bold;':''}">
+          ${i+1}
+        </a>
+      `).join("")}
+    </div>
+
+    <table>
+      <tr><th>To</th><th>Subject</th><th>Sent At</th><th>Attachments</th></tr>
+      ${rows.map(r => `
+        <tr>
+          <td>${escape(r.to)}</td>
+          <td>${escape(r.subject)}</td>
+          <td>${r.sentAt}</td>
+          <td>
+            ${r.attachmentLinks.map(a => `
+              <div><a href="${a.url}" target="_blank">${escape(a.filename)}</a></div>
+            `).join("")}
+          </td>
+        </tr>
+      `).join("")}
+    </table>
+  `);
+}
+
+
 
 /* -------------------------
    HTML wrapper + theme + styles + client reply JS
@@ -880,15 +1306,56 @@ function html(content, opts = {}) {
         :root.light th { background:#f3f7f7; }
         tr:nth-child(even) td { background: rgba(15,23,42,0.7); }
         :root.light tr:nth-child(even) td { background: #fbfdfe; }
+        :root.light .nav-links a {
+          color: #0b1b1a; /* dark text for readability */
+          background: #e6eef0; /* light neutral background */
+          border-color: #cfd8dc;
+        }
+        :root.light .nav-links a:hover {
+          background: var(--accent-soft);
+          color: var(--accent);
+          border-color: var(--accent);
+        }
         .heatmap { margin-top:16px; }
         .heat-row { display:flex; align-items:center; margin-bottom:6px; }
         .heat-day { width:110px; font-size:12px; color:var(--muted); }
         .heat-bar { flex:1; border-radius:999px; padding:4px 10px; border:1px solid var(--border); display:flex; align-items:center; }
         .detail, .detail-body { margin-top:16px; background:var(--card-bg); border-radius:12px; padding:16px; border:1px solid var(--border); }
         pre { white-space:pre-wrap; word-wrap:break-word; font-size:13px; color:var(--text); }
-        .chart-row { display:flex; gap:16px; margin-top:12px; flex-wrap:wrap; }
         .small-link { display:inline-block; margin-top:8px; color:var(--muted); }
-        .charts-full canvas { width:100%; max-width:900px; height:320px; display:block; margin:16px 0; }
+        .small-link {
+          transition: color 0.18s ease, text-shadow 0.18s ease;
+        }
+        .small-link:hover {
+          color: var(--accent);
+          text-shadow: 0 0 6px var(--accent-soft);
+        }
+        .charts-full {
+          min-height: 400px;
+          padding: 16px 0;
+        }
+        .charts-full canvas {
+          width: 100%;
+          max-width: 900px;
+          height: 300px;
+          display: block;
+          margin: 16px 0;
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+        }
+        :root.light .charts-full canvas {
+          background: #f3f7f7;
+        }
+        .chart-row { display:flex; gap:16px; margin-top:12px; flex-wrap:wrap; }
+        .chart-row canvas {
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          width: 100%;
+          max-width: 600px;
+          height: 240px;
+        }
         .reply-btn { background:transparent;border:1px solid var(--border);color:var(--accent);padding:6px 8px;border-radius:6px;cursor:pointer; }
         .reply-section textarea { background: #020617; color: var(--text); border:1px solid var(--border); border-radius:8px; padding:8px; }
       </style>

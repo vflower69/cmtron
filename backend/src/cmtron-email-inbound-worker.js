@@ -339,11 +339,11 @@ const bodyTxt = extractReadableBody(rawMime);
         safeTo = "spam@cellmetron.com";
       }
 
+      /*
       // --------------------------------------------------
       // Forwarding
       // --------------------------------------------------
-      const forwardTo = routeDepartment(safeTo, isSpam);
-
+      const forwardTo = "emilyli889@gmail.com"; //routeDepartment(safeTo, isSpam);
       if (env.OUTBOUND_WORKER_URL) {
         await fetch(env.OUTBOUND_WORKER_URL, {
           method: "POST",
@@ -374,10 +374,11 @@ const bodyTxt = extractReadableBody(rawMime);
           })
         });
       }
+*/
 
       // --------------------------------------------------
       // Auto reply (only for low‑risk mail)
-// --------------------------------------------------
+      // --------------------------------------------------
       if (!isSpam && riskScore < 8) {
         const autoReply = buildAutoReply(safeTo, safeFrom, safeSubject);
         if (autoReply && env.OUTBOUND_WORKER_URL) {
