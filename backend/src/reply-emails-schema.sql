@@ -1,0 +1,1 @@
+CREATE TABLE replies (      id TEXT PRIMARY KEY,      email_id TEXT,      to_addr TEXT,      from_addr TEXT,      subject TEXT,      body TEXT,      status TEXT,      error TEXT,      sent_at TEXT    )
