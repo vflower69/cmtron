@@ -54,48 +54,40 @@ export default {
       emailId
     } = data;
 
-// --- DEBUG: Print raw incoming attachments ---
+	// --- DEBUG: Print raw incoming attachments ---
     console.log("RAW incoming attachments:", JSON.stringify(attachments, null, 2));
 
-    // --- 1. Prepare attachments (sanitize MIME + base64 encode) ---
+    // --- 1. Prepare attachments (sanitize MIME + raw bytes) ---
     const preparedAttachments = [];
 
     if (Array.isArray(attachments)) {
       for (const a of attachments) {
         const bytes = new Uint8Array(a.content || []);
-/* No need
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64 = btoa(binary);
-*/
+
         const safeMime =
           a.contentType && a.contentType.includes("/")
             ? a.contentType
             : "application/octet-stream";
 
-        // --- DEBUG: Print MIME decision ---
+		// --- DEBUG: Print MIME decision ---
         console.log("Attachment:", a.filename);
         console.log("Original contentType:", a.contentType);
         console.log("Safe MIME used:", safeMime);
+        console.log(`Attachment size: ${bytes.length} bytes`);
 
         preparedAttachments.push({
           filename: a.filename || "attachment",
-          //content: base64,
-          content: bytes,                 // ⭐ raw bytes, NOT base64
-          //contentType: safeMime,     // ⭐ Cloudflare requires contentType
-          //mimeType: safeMime
-          type: safeMime,
-          disposition: "attachment"   // ✅ required by Cloudflare
+          content: bytes, // ⭐ raw bytes, NOT base64
+          type: safeMime, // ✅ Cloudflare expects 'type'
+          disposition: "attachment" // ✅ required by Cloudflare
         });
       }
     }
 
-        // --- DEBUG: Print final payload sent to Cloudflare ---
+	// --- DEBUG: Print final payload sent to Cloudflare ---
     console.log("Prepared attachments:", JSON.stringify(preparedAttachments, null, 2));
 
-    // --- 2. Log send attempt to KV (log sanitized attachments) ---
+    // --- 2. Log send attempt to KV ---
     const sendId = `send-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     await env.EMAIL_SEND_LOG_KV.put(sendId, JSON.stringify({
@@ -106,15 +98,51 @@ export default {
       originalTo,
       subject,
       text,
-      attachments: preparedAttachments,
+      attachments: preparedAttachments.map(a => ({
+        filename: a.filename,
+        contentType: a.type,
+        size: a.content.length
+      })),
       spamScore,
       isSpam,
       sentAt: new Date().toISOString()
     }));
 
-    console.log("Final SEND_EMAIL payload:", JSON.stringify(preparedAttachments, null, 2));
+    // --- 3. Store outbound email + attachments in D1 ---
+    await env.EMAIL_DB.prepare(
+      `INSERT INTO sent_emails
+       (id, email_id, from_addr, to_addr, original_to, subject, body, spam_score, is_spam, sent_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      sendId,
+      emailId || null,
+      from,
+      to,
+      originalTo || null,
+      subject,
+      text,
+      spamScore || null,
+      isSpam ? 1 : 0,
+      new Date().toISOString()
+    ).run();
 
-    // --- 3. Send via Cloudflare Email API ---
+    // Store attachments as BLOBs in D1 table sent_attachments
+    for (const a of preparedAttachments) {
+      await env.EMAIL_DB.prepare(
+        `INSERT INTO sent_attachments (email_id, filename, content_type, data)
+         VALUES (?, ?, ?, ?)`
+      ).bind(
+        sendId,
+        a.filename,
+        a.type,
+        a.content   // Uint8Array → stored as BLOB
+      ).run();
+    }
+
+    console.log("Stored outbound email + attachments in D1");
+	console.log("Final SEND_EMAIL payload:", JSON.stringify(preparedAttachments, null, 2));
+
+    // --- 4. Send via Cloudflare Email API ---
     try {
       await env.SEND_EMAIL.send({
         from: from || "noreply@cellmetron.com",
@@ -130,7 +158,8 @@ export default {
       );
 
     } catch (err) {
-            console.log("Cloudflare SEND_EMAIL error:", String(err));
+      console.log("Cloudflare SEND_EMAIL error:", String(err));
+
       await env.EMAIL_DB.prepare(
         `INSERT INTO send_errors (id, email_id, to_addr, error, occurred_at)
          VALUES (?, ?, ?, ?, ?)`
