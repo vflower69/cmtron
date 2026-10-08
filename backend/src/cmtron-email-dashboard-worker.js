@@ -232,31 +232,88 @@ if (path.startsWith("/api/attachments/") && request.method === "GET") {
 
 
     // View sent email details
-    if (url.pathname === '/outbound-view' && request.method === 'GET') {
-      const id = url.searchParams.get('id');
-      if (!id) return new Response('Missing id', { status: 400 });
+if (url.pathname === '/outbound-view' && request.method === 'GET') {
+  const id = url.searchParams.get('id');
+  if (!id) return new Response('Missing id', { status: 400 });
 
-      const data = await env.EMAIL_SEND_LOG_KV.get(id);
-      if (!data) return new Response('Not found', { status: 404 });
+  // 1. Load metadata from KV
+  const data = await env.EMAIL_SEND_LOG_KV.get(id);
+  if (!data) return new Response('Not found', { status: 404 });
 
-      const d = JSON.parse(data);
+  const d = JSON.parse(data);
 
-      return html(`
-        <header><h1>Outbound Message</h1><a href="/outbound">← Back</a></header>
-        <section>
-          <p><strong>From:</strong> ${d.from}</p>
-          <p><strong>To:</strong> ${d.to}</p>
-          <p><strong>Subject:</strong> ${escape(d.subject)}</p>
-          <p><strong>Sent At:</strong> ${d.sentAt}</p>
-          <hr>
-          <pre>${escape(d.text || '(no body)')}</pre>
-        </section>
-      `);
-    }
+  // 2. Load attachments from D1 (real binary)
+  const rows = await env.EMAIL_DB.prepare(
+    `SELECT filename, content_type, data
+     FROM sent_attachments
+     WHERE email_id = ?`
+  ).bind(id).all();
 
+  const attachments = rows.results.map(r => ({
+    filename: r.filename,
+    contentType: r.content_type,
+    bytes: Array.from(new Uint8Array(r.data))   // convert BLOB → array for JSON
+  }));
 
+  // 3. Build attachment HTML
+  let attachmentHtml = "";
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    attachmentHtml = `
+      <h3>Attachments</h3>
+      <ul>
+        ${attachments.map((a, idx) => `
+          <li>
+            <strong>${a.filename}</strong>
+            <br>
+            <small>${a.contentType || "unknown type"} — ${a.bytes.length} bytes</small>
+            <br>
+            <button onclick="downloadAttachment(${idx})">Download</button>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  } else {
+    attachmentHtml = "<p><em>No attachments</em></p>";
+  }
 
-    return new Response("Not found", { status: 404 });
+  // 4. Render page
+  return html(`
+    <header><h1>Sent Email Detail</h1><a href="/outbound">← Back</a></header>
+    <section>
+      <p><strong>From:</strong> ${d.from}</p>
+      <p><strong>To:</strong> ${d.to}</p>
+      <p><strong>Subject:</strong> ${escape(d.subject)}</p>
+      <p><strong>Sent At:</strong> ${d.sentAt}</p>
+      <hr>
+      <pre>${escape(d.text || '(no body)')}</pre>
+
+      <hr>
+      ${attachmentHtml}
+    </section>
+
+    <script>
+	  const attachments = ${JSON.stringify(attachments || [])};
+
+      function downloadAttachment(index) {
+        const a = attachments[index];
+        if (!a) return alert("Attachment missing");
+
+        const bytes = new Uint8Array(a.bytes);
+        const blob = new Blob([bytes], { type: a.contentType || "application/octet-stream" });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = a.filename || "attachment";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    </script>
+  `);
+}
+
+return new Response("Not found", { status: 404 });
+
   }
 }
 
@@ -280,11 +337,13 @@ async function dashboardHome(env) {
   const deptRows = await env.EMAIL_DB.prepare(
     `SELECT
        CASE
-         WHEN to_addr LIKE '%research@cellmetron.com%' THEN 'Research'
-         WHEN to_addr LIKE '%press@cellmetron.com%'    THEN 'Press'
-         WHEN to_addr LIKE '%retail@cellmetron.com%'   THEN 'Retail'
-         WHEN to_addr LIKE '%investors@cellmetron.com%'THEN 'Investors'
-         WHEN to_addr LIKE '%support@cellmetron.com%'  THEN 'Support'
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
          ELSE 'Other'
        END AS department,
        COUNT(*) AS total
@@ -624,13 +683,13 @@ async function departmentAnalytics(env) {
   const rows = await env.EMAIL_DB.prepare(
     `SELECT
        CASE
-         WHEN to_addr LIKE '%research@cellmetron.com%' THEN 'Research'
-         WHEN to_addr LIKE '%press@cellmetron.com%'    THEN 'Press'
-         WHEN to_addr LIKE '%retail@cellmetron.com%'   THEN 'Retail'
-         WHEN to_addr LIKE '%investors@cellmetron.com%'THEN 'Investors'
-         WHEN to_addr LIKE '%support@cellmetron.com%'  THEN 'Support'
-         WHEN to_addr LIKE '%info@cellmetron.com%'  THEN 'Info'
-         WHEN to_addr LIKE '%hr@cellmetron.com%'  THEN 'HR'
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
          ELSE 'Other'
        END AS department,
        COUNT(*) AS total,
@@ -684,7 +743,7 @@ async function spamHeatmap(env) {
   `);
 }
 
-// email detail (added reply form + reply history)
+// Inbound email detail (added reply form + reply history)
 async function emailDetail(env, url) {
   const id = url.searchParams.get("id");
   if (!id) return new Response("Missing id", { status: 400 });
@@ -748,7 +807,7 @@ async function emailDetail(env, url) {
     : `<p style="color:var(--muted)">No attachments</p>`;
 
   return html(`
-    <header><h1>Email Detail</h1><a href="/inbound">← Back</a></header>
+    <header><h1>Received Email Detail</h1><a href="/inbound">← Back</a></header>
 
     <section class="detail">
       <h2>Metadata</h2>
@@ -1034,6 +1093,18 @@ async function composePage(env) {
         if (url) document.execCommand("createLink", false, url);
       }
 
+      async function readFileAsBytes(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const arrayBuffer = reader.result;
+            resolve(Array.from(new Uint8Array(arrayBuffer)));
+          };
+          reader.onerror = reject;
+          reader.readAsArrayBuffer(file);
+        });
+      }
+
       document.getElementById('sendBtn').addEventListener('click', async () => {
         const from = document.getElementById('fromAddr').value;
         const to = document.getElementById('toAddr').value.trim();
@@ -1049,6 +1120,7 @@ async function composePage(env) {
 
         // --- Build attachments array ---
         const attachments = [];
+        /*
         for (const file of files) {
           const buf = await file.arrayBuffer();
           attachments.push({
@@ -1057,6 +1129,16 @@ async function composePage(env) {
             contentType: file.type && file.type.includes("/")
               ? file.type
               : "application/octet-stream"   // ⭐ guaranteed valid
+          });
+        }*/
+        for (const file of files) {
+          const bytes = await readFileAsBytes(file);
+          attachments.push({
+            filename: file.name,
+            content: bytes,
+            contentType: file.type && file.type.includes("/")
+              ? file.type
+              : "application/octet-stream"
           });
         }
 

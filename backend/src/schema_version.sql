@@ -1,0 +1,1 @@
+CREATE TABLE schema_version (   id INTEGER PRIMARY KEY AUTOINCREMENT,   version INTEGER NOT NULL,   applied_at TEXT NOT NULL )
