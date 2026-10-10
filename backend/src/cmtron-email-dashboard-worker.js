@@ -211,13 +211,23 @@ if (path.startsWith("/api/attachments/") && request.method === "GET") {
       }
     }
 
-     // Delete endpoint - outbound email
+    // Delete endpoint - outbound email
     if (url.pathname === '/delete-outbound' && request.method === 'POST') {
       const { id } = await request.json();
 
       try {
-        // Delete from KV
+        // 1. Delete from KV
         await env.EMAIL_SEND_LOG_KV.delete(id);
+
+        // 2. Delete from D1: sent_attachments (delete children first)
+        await env.EMAIL_DB.prepare(
+          `DELETE FROM sent_attachments WHERE email_id = ?`
+        ).bind(id).run();
+
+        // 3. Delete from D1: sent_emails (then delete parent)
+        await env.EMAIL_DB.prepare(
+          `DELETE FROM sent_emails WHERE id = ?`
+        ).bind(id).run();
 
         return new Response(JSON.stringify({ ok: true }), {
           headers: { 'Content-Type': 'application/json' }
@@ -229,6 +239,8 @@ if (path.startsWith("/api/attachments/") && request.method === "GET") {
         });
       }
     }
+
+
 
 
     // View sent email details
@@ -278,7 +290,7 @@ if (url.pathname === '/outbound-view' && request.method === 'GET') {
 
   // 4. Render page
   return html(`
-    <header><h1>Sent Email Detail</h1><a href="/outbound">← Back</a></header>
+    <header><h1>Sent Email Details</h1><a href="/outbound">← Back</a></header>
     <section>
       <p><strong>From:</strong> ${d.from}</p>
       <p><strong>To:</strong> ${d.to}</p>
@@ -320,9 +332,12 @@ return new Response("Not found", { status: 404 });
 /* -------------------------
    Pages and helpers
    ------------------------- */
-
+/* ----------------------------- *
+ *  Dashboard Home Page          *
+ * ----------------------------- */
 async function dashboardHome(env) {
   const inboundCount = await env.EMAIL_DB.prepare("SELECT COUNT(*) AS count FROM emails").first();
+  const outboundCount = await env.EMAIL_DB.prepare('SELECT COUNT(*) AS count FROM sent_emails').first();
   const errorCount = await env.EMAIL_DB.prepare("SELECT COUNT(*) AS count FROM send_errors").first();
   const spamStats = await env.EMAIL_DB.prepare("SELECT SUM(is_spam) AS spam, SUM(1 - is_spam) AS ham FROM emails").first();
 
@@ -388,17 +403,24 @@ async function dashboardHome(env) {
       </div>
 
       <div class="card">
+        <h2>Inbound - Spam vs Clean</h2>
+        <p>Spam: ${spamStats.spam || 0}</p>
+        <p>Clean: ${spamStats.ham || 0}</p>
+        <a href="/spam-heatmap">View spam heatmap →</a>
+      </div>
+
+      <div class="card">
+        <h2>Outbound Emails</h2>
+        <p class="big">${outboundCount.count}</p>
+        <a href="/outbound">View outbound logs →</a>
+      </div>
+
+      <div class="card">
         <h2>Send Errors</h2>
         <p class="big">${errorCount.count}</p>
         <a href="/errors">View errors →</a>
       </div>
 
-      <div class="card">
-        <h2>Spam vs Clean</h2>
-        <p>Spam: ${spamStats.spam || 0}</p>
-        <p>Clean: ${spamStats.ham || 0}</p>
-        <a href="/spam-heatmap">View spam heatmap →</a>
-      </div>
     </section>
 
     <section>
@@ -552,11 +574,21 @@ async function outboundTable(env) {
 async function outboundTable(env) {
   const list = await env.EMAIL_SEND_LOG_KV.list({ limit: 200 });
   const rows = await Promise.all(
-    list.keys.map(async key => JSON.parse(await env.EMAIL_SEND_LOG_KV.get(key.name)))
+    list.keys.map(async key => {
+      try {
+        const raw = await env.EMAIL_SEND_LOG_KV.get(key.name);
+        return raw ? JSON.parse(raw) : null;
+      } catch (err) {
+        console.error('Failed to parse outbound record:', key.name, err);
+        return null;
+      }
+    })
   );
 
+  const validRows = rows.filter(d => d && d.sendId); // skip nulls or malformed entries
+
   return html(`
-    <header><h1>Outbound Send Attempts</h1><a href="/">← Back</a></header>
+    <header><h1>Outbound Emails</h1><a href="/">← Back</a></header>
 
     <table>
       <tr>
@@ -569,7 +601,7 @@ async function outboundTable(env) {
         <th>Actions</th>
       </tr>
 
-      ${rows.map(d => `
+      ${validRows.map(d => `
         <tr>
           <td>${d.sendId}</td>
           <td>${d.emailId}</td>
@@ -593,7 +625,6 @@ async function outboundTable(env) {
       document.addEventListener('click', async (e) => {
         if (e.target && e.target.matches('.delete-outbound-btn')) {
           const id = e.target.getAttribute('data-id');
-
           if (!confirm(\`Delete outbound record \${id}?\`)) return;
 
           e.target.disabled = true;
@@ -606,7 +637,6 @@ async function outboundTable(env) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id })
             });
-
             const result = await res.json();
 
             if (result.ok) {
@@ -626,6 +656,7 @@ async function outboundTable(env) {
     </script>
   `);
 }
+
 
 
 // errors table
@@ -807,7 +838,7 @@ async function emailDetail(env, url) {
     : `<p style="color:var(--muted)">No attachments</p>`;
 
   return html(`
-    <header><h1>Received Email Detail</h1><a href="/inbound">← Back</a></header>
+    <header><h1>Received Email Details</h1><a href="/inbound">← Back</a></header>
 
     <section class="detail">
       <h2>Metadata</h2>
