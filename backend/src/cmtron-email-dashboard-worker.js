@@ -367,13 +367,13 @@ async function dashboardHome(env) {
      ORDER BY total DESC`
   ).all();
 
-  const spamData = JSON.stringify(spamRows.results.reverse());
-  const deptData = JSON.stringify(deptRows.results);
+  const spamData = spamRows.results.reverse();
+  const deptData = deptRows.results;
 
   return html(`
     <header>
       <h1>Cellmetron Email Dashboard</h1>
-      <p>Operational view of inbound, outbound, spam, and routing.</p>
+      <p>Operational view of inbound, outbound, spam, and errors.</p>
     </header>
     <section style="margin-top:24px;">
       <h2>Navigation</h2>
@@ -426,13 +426,12 @@ async function dashboardHome(env) {
     <section>
       <h2>Charts</h2>
       <div class="chart-row">
-        <canvas id="spamTrend" width="600" height="240"></canvas>
-        <canvas id="deptChart" width="400" height="240"></canvas>
+        <canvas id="spamTrend"></canvas>
+        <canvas id="deptChart"></canvas>
       </div>
-      <a class="small-link" href="/charts">Open charts page →</a>
+      <a class="small-link" href="/charts"><u><b>Open charts page →</b></u></a>
     </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       // Theme toggle
       (function(){
@@ -449,11 +448,17 @@ async function dashboardHome(env) {
         }
         toggle.addEventListener('click', ()=> applyTheme(localStorage.getItem('cmtron-theme') === 'light' ? 'dark' : 'light'));
         if(!localStorage.getItem('cmtron-theme')) localStorage.setItem('cmtron-theme','dark');
-        applyTheme(localStorage.getItem('cmtron-theme'));
+          // ⭐ FIX: delay theme application so Chart.js doesn't get wiped
+        requestAnimationFrame(() => {
+          applyTheme(localStorage.getItem('cmtron-theme'));
+        });
       })();
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script>    
+      const spamRows = ${JSON.stringify(spamData)};
+      const deptRows = ${JSON.stringify(deptData)};
 
-      const spamRows = ${spamData};
-      const deptRows = ${deptData};
 
       // Spam trend chart
       (function(){
@@ -470,7 +475,40 @@ async function dashboardHome(env) {
               { label: 'Clean', data: clean, borderColor: '#1fd1b5', backgroundColor: 'rgba(31,209,181,0.12)', fill: true }
             ]
           },
-          options: { responsive: true, maintainAspectRatio: false }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--text')
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              },
+              y: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              }
+            }
+          }
+
+
         });
       })();
 
@@ -482,10 +520,45 @@ async function dashboardHome(env) {
         new Chart(ctx, {
           type: 'bar',
           data: { labels, datasets: [{ label: 'Volume', data, backgroundColor: '#1fd1b5' }] },
-          options: { responsive: true, maintainAspectRatio: false }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--text')
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              },
+              y: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              }
+            }
+          }
+
+
         });
       })();
+      
     </script>
+
   `, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
 }
 
@@ -1003,14 +1076,15 @@ function toCsv(rows, fields) {
   return header + body;
 }
 
-/* -------------------------
+/* ---------------------------------
    Charts page (full-screen charts)
-   ------------------------- */
-async function chartsPage(env) {
+   --------------------------------- */
+/*async function chartsPage(env) {
   const spamRows = await env.EMAIL_DB.prepare(
     `SELECT substr(received_at,1,10) AS day, SUM(is_spam) AS spam, SUM(1 - is_spam) AS clean
      FROM emails GROUP BY day ORDER BY day DESC LIMIT 60`
   ).all();
+
   const deptRows = await env.EMAIL_DB.prepare(
     `SELECT
        CASE
@@ -1031,36 +1105,251 @@ async function chartsPage(env) {
   return html(`
     <header><h1>Charts</h1><a href="/">← Back</a></header>
     <div class="charts-full">
-      <canvas id="spamTrendFull" width="900" height="300"></canvas>
-      <canvas id="deptChartFull" width="900" height="300"></canvas>
+      <canvas id="spamTrendFull"></canvas>
+      <canvas id="deptChartFull"></canvas>
     </div>
 
+<script>
+      // Theme toggle
+      (function(){
+        const root = document.documentElement;
+        const toggle = document.createElement('button');
+        toggle.id = 'themeToggle';
+        toggle.textContent = localStorage.getItem('cmtron-theme') === 'light' ? '🌙' : '☀️';
+        toggle.style = 'position:fixed;right:18px;top:18px;padding:8px;border-radius:8px;border:none;cursor:pointer;';
+        document.body.appendChild(toggle);
+        function applyTheme(t){
+          if(t === 'light'){ root.classList.add('light'); toggle.textContent='🌙'; }
+          else { root.classList.remove('light'); toggle.textContent='☀️'; }
+          localStorage.setItem('cmtron-theme', t);
+        }
+        toggle.addEventListener('click', ()=> applyTheme(localStorage.getItem('cmtron-theme') === 'light' ? 'dark' : 'light'));
+        if(!localStorage.getItem('cmtron-theme')) localStorage.setItem('cmtron-theme','dark');
+          // ⭐ FIX: delay theme application so Chart.js doesn't get wiped
+        requestAnimationFrame(() => {
+          applyTheme(localStorage.getItem('cmtron-theme'));
+        });
+      })();
+      </script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script -->
+    <script>
+      const spamRows = ${JSON.stringify(spamRows.results.reverse())};
+      const deptRows = ${JSON.stringify(deptRows.results)};
+
+      // ✅ Run chart initialization only after the page fully loads
+      window.addEventListener('load', () => {
+        const labels = spamRows.map(r => r.day);
+        const spam = spamRows.map(r => r.spam);
+        const clean = spamRows.map(r => r.clean);
+
+        new Chart(document.getElementById('spamTrendFull').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Spam', data: spam, borderColor: '#ff4b4b', backgroundColor: 'rgba(255,75,75,0.12)', fill: true },
+              { label: 'Clean', data: clean, borderColor: '#1fd1b5', backgroundColor: 'rgba(31,209,181,0.12)', fill: true }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--text')
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              },
+              y: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              }
+            }
+          }
+        });
+
+        new Chart(document.getElementById('deptChartFull').getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: deptRows.map(r => r.department),
+            datasets: [{ label: 'Volume', data: deptRows.map(r => r.total), backgroundColor: '#1fd1b5' }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--text')
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              },
+              y: {
+                ticks: {
+                  color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--muted')
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.08)'
+                }
+              }
+            }
+          }
+        });
+      });
+    </script>
+  `, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
+}
+*/
+async function chartsPage(env) {
+  const spamRows = await env.EMAIL_DB.prepare(
+    `SELECT substr(received_at,1,10) AS day, SUM(is_spam) AS spam, SUM(1 - is_spam) AS clean
+     FROM emails GROUP BY day ORDER BY day DESC LIMIT 60`
+  ).all();
+
+  const deptRows = await env.EMAIL_DB.prepare(
+    `SELECT
+       CASE
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
+        ELSE 'Other'
+       END AS department,
+       COUNT(*) AS total
+     FROM emails
+     GROUP BY department ORDER BY total DESC`
+  ).all();
+
+  return html(`
+    <header><h1>Charts</h1><a href="/">← Back</a></header>
+
+    <div class="charts-full">
+      <canvas id="spamTrendFull" height="300"></canvas>
+      <canvas id="deptChartFull" height="300"></canvas>
+    </div>
+
+    <!-- Theme initialization BEFORE Chart.js -->
+    <script>
+      (function(){
+        const root = document.documentElement;
+        const t = localStorage.getItem('cmtron-theme') || 'dark';
+        if(t === 'light') root.classList.add('light');
+        else root.classList.remove('light');
+      })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
       const spamRows = ${JSON.stringify(spamRows.results.reverse())};
       const deptRows = ${JSON.stringify(deptRows.results)};
 
-      (function(){
+      // Run AFTER layout stabilizes
+      requestAnimationFrame(() => {
         const labels = spamRows.map(r => r.day);
         const spam = spamRows.map(r => r.spam);
         const clean = spamRows.map(r => r.clean);
-        new Chart(document.getElementById('spamTrendFull').getContext('2d'), {
+
+        new Chart(document.getElementById('spamTrendFull'), {
           type: 'line',
-          data: { labels, datasets: [{ label:'Spam', data: spam, borderColor:'#ff4b4b' }, { label:'Clean', data: clean, borderColor:'#1fd1b5' }] },
-          options: { responsive:true, maintainAspectRatio:false }
+          data: {
+            labels,
+            datasets: [
+              { label: 'Spam', data: spam, borderColor: '#ff4b4b', backgroundColor: 'rgba(255,75,75,0.12)', fill: true },
+              { label: 'Clean', data: clean, borderColor: '#1fd1b5', backgroundColor: 'rgba(31,209,181,0.12)', fill: true }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: getComputedStyle(document.documentElement).getPropertyValue('--text')
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--muted') },
+                grid: { color: 'rgba(255,255,255,0.08)' }
+              },
+              y: {
+                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--muted') },
+                grid: { color: 'rgba(255,255,255,0.08)' }
+              }
+            }
+          }
         });
 
-        new Chart(document.getElementById('deptChartFull').getContext('2d'), {
+        new Chart(document.getElementById('deptChartFull'), {
           type: 'bar',
-          data: { labels: deptRows.map(r=>r.department), datasets: [{ label:'Volume', data: deptRows.map(r=>r.total), backgroundColor:'#1fd1b5' }] },
-          options: { responsive:true, maintainAspectRatio:false }
+          data: {
+            labels: deptRows.map(r => r.department),
+            datasets: [
+              { label: 'Volume', data: deptRows.map(r => r.total), backgroundColor: '#1fd1b5' }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: getComputedStyle(document.documentElement).getPropertyValue('--text')
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--muted') },
+                grid: { color: 'rgba(255,255,255,0.08)' }
+              },
+              y: {
+                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--muted') },
+                grid: { color: 'rgba(255,255,255,0.08)' }
+              }
+            }
+          }
         });
-      })();
+      });
     </script>
-  `, { headers: { "Content-Type": "text/html; charset=UTF-8" }});
+  `, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
 }
+
 
 /* -----------------------------
    Composite new email page
@@ -1444,16 +1733,16 @@ function html(content, opts = {}) {
           text-shadow: 0 0 6px var(--accent-soft);
         }
         .charts-full {
-          min-height: 400px;
-          padding: 16px 0;
+          padding: 8px 0;
         }
         .charts-full canvas {
           width: 100%;
           max-width: 900px;
-          height: 300px;
+          height: 500px !important;
+          aspect-ratio: 3 / 1;
           display: block;
           margin: 16px 0;
-          background: var(--card-bg);
+          background: linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9));
           border: 1px solid var(--border);
           border-radius: 12px;
         }
@@ -1467,7 +1756,12 @@ function html(content, opts = {}) {
           border-radius: 12px;
           width: 100%;
           max-width: 600px;
-          height: 240px;
+          min-height: 240px;      /* prevents collapse */
+          aspect-ratio: 3 / 1;    /* gives Chart.js a stable drawing surface */
+          background: linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9));
+        }
+        :root.light .chart-row canvas {
+          background: #f3f7f7;
         }
         .reply-btn { background:transparent;border:1px solid var(--border);color:var(--accent);padding:6px 8px;border-radius:6px;cursor:pointer; }
         .reply-section textarea { background: #020617; color: var(--text); border:1px solid var(--border); border-radius:8px; padding:8px; }
