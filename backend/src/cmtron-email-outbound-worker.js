@@ -29,6 +29,32 @@ export default {
 */
 
 // HTTP Worker (cmtron-email-outbound)
+
+const ALLOWED_DOMAINS = [
+  "cellmetron.com",
+  "sugihairproducts.com",
+  "sugi-global.com",
+  "glorilliant.com"
+];
+
+function validateSender(sender) {
+  const email = (sender || "").trim().toLowerCase();
+
+  const parts = email.split("@");
+
+  if (parts.length !== 2) {
+    throw new Error(`Invalid sender address: ${email}`);
+  }
+
+  const domain = parts[1];
+
+  if (!ALLOWED_DOMAINS.includes(domain)) {
+    throw new Error(`Unauthorized sender domain: ${domain}`);
+  }
+
+  return email;
+}
+
 export default {
   async fetch(request, env) {
     if (request.method !== "POST") {
@@ -53,6 +79,31 @@ export default {
       isSpam,
       emailId
     } = data;
+
+    let sender;
+    try {
+
+      sender = from
+        ? validateSender(from)
+        : "noreply@sugi-global.com";
+
+    } catch (err) {
+
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: err.message
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+
+    const senderDomain = sender.split("@")[1];
 
 	// --- DEBUG: Print raw incoming attachments ---
     console.log("RAW incoming attachments:", JSON.stringify(attachments, null, 2));
@@ -93,8 +144,9 @@ export default {
     await env.EMAIL_SEND_LOG_KV.put(sendId, JSON.stringify({
       sendId,
       emailId,
+      senderDomain,
       to,
-      from,
+      from: sender,
       originalTo,
       subject,
       text,
@@ -116,7 +168,7 @@ export default {
     ).bind(
       sendId,
       emailId || null,
-      from,
+      sender,
       to,
       originalTo || null,
       subject,
@@ -145,7 +197,7 @@ export default {
     // --- 4. Send via Cloudflare Email API ---
     try {
       await env.SEND_EMAIL.send({
-        from: from || "noreply@cellmetron.com",
+        from: sender,
         to,
         subject,
         text,
@@ -153,7 +205,11 @@ export default {
       });
 
       return new Response(
-        JSON.stringify({ ok: true }),
+        JSON.stringify({
+          ok: true,
+          sendId,
+          senderDomain
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
 
