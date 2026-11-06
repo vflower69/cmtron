@@ -312,7 +312,7 @@ const bodyTxt = extractReadableBody(rawMime);
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               to: safeFrom,
-              from: "noreply@cellmetron.com",
+              from: "noreply@sugi-global.com",
               subject: `Re: ${safeSubject}`,
               text:
                 "Your message could not be delivered due to security concerns.\n\n" +
@@ -336,7 +336,7 @@ const bodyTxt = extractReadableBody(rawMime);
             to: safeTo
           })
         );
-        safeTo = "spam@cellmetron.com";
+        safeTo = "spam@sugi-global.com";
       }
 
       /*
@@ -844,7 +844,9 @@ function computeAuthScore({ dkim, spf, dmarc, arc }, spamScore) {
 // ======================================================
 
 function routeDepartment(to, isSpam) {
-  if (isSpam) return "spam@cellmetron.com";
+  if (isSpam) return "spam@sugi-global.com";
+
+  // For cellmetron.com
   if (to.includes("research@cellmetron.com"))
     return "research@cellmetron.com";
   if (to.includes("press@cellmetron.com"))
@@ -859,6 +861,23 @@ function routeDepartment(to, isSpam) {
     return "info@cellmetron.com";
   if (to.includes("hr@cellmetron.com"))
     return "hr@cellmetron.com";
+
+  // For sugihairproducts.com
+  if (to.includes("research@sugihairproducts.com"))
+    return "research@sugihairproducts.com";
+  if (to.includes("press@sugihairproducts.com"))
+    return "press@sugihairproducts.com";
+  if (to.includes("retail@sugihairproducts.com"))
+    return "retail@sugihairproducts.com";
+  if (to.includes("investors@sugihairproducts.com"))
+    return "investor@sugihairproducts.com";
+  if (to.includes("support@sugihairproducts.com"))
+    return "support@sugihairproducts.com";
+  if (to.includes("info@sugihairproducts.com"))
+    return "info@sugihairproducts.com";
+  if (to.includes("hr@sugihairproducts.com"))
+    return "hr@sugihairproducts.com";
+
   return "mikeliu89@hotmail.com";
 }
 
@@ -867,6 +886,8 @@ function routeDepartment(to, isSpam) {
 // ======================================================
 
 function buildAutoReply(to, from, subject) {
+
+  // For cellmetron.com
   if (to.includes("research@cellmetron.com")) {
     return {
       to: from,
@@ -878,7 +899,6 @@ function buildAutoReply(to, from, subject) {
         "— Cellmetron Research"
     };
   }
-
   if (to.includes("press@cellmetron.com")) {
     return {
       to: from,
@@ -890,7 +910,6 @@ function buildAutoReply(to, from, subject) {
         "— Cellmetron Communications"
     };
   }
-
   if (to.includes("support@cellmetron.com")) {
     return {
       to: from,
@@ -902,8 +921,7 @@ function buildAutoReply(to, from, subject) {
         "— Cellmetron Support"
     };
   }
-
-    if (to.includes("hr@cellmetron.com")) {
+  if (to.includes("hr@cellmetron.com")) {
     return {
       to: from,
       from: "hr@cellmetron.com",
@@ -914,8 +932,7 @@ function buildAutoReply(to, from, subject) {
         "— Cellmetron HR"
     };
   }
-
-    if (to.includes("info@cellmetron.com")) {
+  if (to.includes("info@cellmetron.com")) {
     return {
       to: from,
       from: "info@cellmetron.com",
@@ -926,8 +943,7 @@ function buildAutoReply(to, from, subject) {
         "— Cellmetron"
     };
   }
-
-    if (to.includes("retail@cellmetron.com")) {
+  if (to.includes("retail@cellmetron.com")) {
     return {
       to: from,
       from: "retail@cellmetron.com",
@@ -938,8 +954,7 @@ function buildAutoReply(to, from, subject) {
         "— Cellmetron Retail Team"
     };
   }
-
-    if (to.includes("investors@cellmetron.com")) {
+  if (to.includes("investors@cellmetron.com")) {
     return {
       to: from,
       from: "investors@cellmetron.com",
@@ -948,6 +963,85 @@ function buildAutoReply(to, from, subject) {
         "Thanks for contacting Cellmetron Investors Team.\n\n" +
         "We’ve received your message and will respond within 2–3 business days.\n\n" +
         "— Cellmetron Investor Relations Team"
+    };
+  }
+
+  // For sugihairproducts.com
+    if (to.includes("research@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "research@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting SUGi Hair Products Research.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— SUGi Hair Products Research"
+    };
+  }
+  if (to.includes("press@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "press@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for reaching out to SUGi Hair Products press.\n\n" +
+        "Our media team will review your inquiry and get back to you shortly.\n\n" +
+        "— SUGi Hair Products Communications"
+    };
+  }
+  if (to.includes("support@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "support@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting SUGi Hair Products Support.\n\n" +
+        "Your ticket has been received. We aim to respond within 24 hours.\n\n" +
+        "— SUGi Hair Products Support"
+    };
+  }
+  if (to.includes("hr@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "hr@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting SUGi Hair Products HR.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— SUGi Hair Products HR"
+    };
+  }
+  if (to.includes("info@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "info@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting SUGi Hair.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— SUGi Hair"
+    };
+  }
+  if (to.includes("retail@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "retail@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting SUGi Hair Products Retail Team.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— SUGi Hair Products Retail Team"
+    };
+  }
+  if (to.includes("investors@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "investors@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting SUGi Hair Products Investors Team.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— SUGi Hair Products Investor Relations Team"
     };
   }
 
