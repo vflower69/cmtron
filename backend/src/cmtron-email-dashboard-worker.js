@@ -351,13 +351,21 @@ async function dashboardHome(env) {
   const deptRows = await env.EMAIL_DB.prepare(
     `SELECT
        CASE
-        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
-        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
-        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
-        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
-        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
-        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
-        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'CellmetronResearch'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'CellmetronPress'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'CellmetronRetail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'CellmetronInvestors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'CellmetronSupport'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'CellmetronHR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'CellmetronInfo'
+        WHEN LOWER(to_addr) LIKE '%research@sugihairproducts.com%' THEN 'SugiHairResearch'
+        WHEN LOWER(to_addr) LIKE '%press@sugihairproducts.com%'    THEN 'SugiHairPress'
+        WHEN LOWER(to_addr) LIKE '%retail@sugihairproducts.com%'   THEN 'SugiHairRetail'
+        WHEN LOWER(to_addr) LIKE '%investors@sugihairproducts.com%'THEN 'SugiHairInvestors'
+        WHEN LOWER(to_addr) LIKE '%support@sugihairproducts.com%'  THEN 'SugiHairSupport'
+        WHEN LOWER(to_addr) LIKE '%hr@sugihairproducts.com%'       THEN 'SugiHairHR'
+        WHEN LOWER(to_addr) LIKE '%info@sugihairproducts.com%'     THEN 'SugiHairInfo'
+        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'     THEN 'SugiHairHello'
          ELSE 'Other'
        END AS department,
        COUNT(*) AS total
@@ -670,7 +678,9 @@ async function outboundTable(env) {
     })
   );
 
-  const validRows = rows.filter(d => d && d.sendId); // skip nulls or malformed entries
+//const validRows = rows.filter(d => d && d.sendId); // skip nulls or malformed entries
+  const validRows = rows.filter(d => d && d.sendId)
+  .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));//sort it from latest one to oldest one
 
   return html(`
     <header><h1>Outbound Emails</h1><a href="/">← Back</a></header>
@@ -799,13 +809,21 @@ async function departmentAnalytics(env) {
   const rows = await env.EMAIL_DB.prepare(
     `SELECT
        CASE
-        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
-        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
-        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
-        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
-        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
-        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
-        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'CellmetronResearch'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'CellmetronPress'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'CellmetronRetail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'CellmetronInvestors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'CellmetronSupport'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'CellmetronHR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'CellmetronInfo'
+        WHEN LOWER(to_addr) LIKE '%research@sugihairproducts.com%' THEN 'SugiHairResearch'
+        WHEN LOWER(to_addr) LIKE '%press@sugihairproducts.com%'    THEN 'SugiHairPress'
+        WHEN LOWER(to_addr) LIKE '%retail@sugihairproducts.com%'   THEN 'SugiHairRetail'
+        WHEN LOWER(to_addr) LIKE '%investors@sugihairproducts.com%'THEN 'SugiHairInvestors'
+        WHEN LOWER(to_addr) LIKE '%support@sugihairproducts.com%'  THEN 'SugiHairSupport'
+        WHEN LOWER(to_addr) LIKE '%hr@sugihairproducts.com%'       THEN 'SugiHairHR'
+        WHEN LOWER(to_addr) LIKE '%info@sugihairproducts.com%'     THEN 'SugiHairInfo'
+        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'     THEN 'SugiHairHello'
          ELSE 'Other'
        END AS department,
        COUNT(*) AS total,
@@ -1260,13 +1278,21 @@ async function chartsPage(env) {
   const deptRows = await env.EMAIL_DB.prepare(`
     SELECT
       CASE
-        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'Research'
-        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'Press'
-        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'Retail'
-        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'Investors'
-        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'Support'
-        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'HR'
-        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'Info'
+        WHEN LOWER(to_addr) LIKE '%research@cellmetron.com%' THEN 'CellmetronResearch'
+        WHEN LOWER(to_addr) LIKE '%press@cellmetron.com%'    THEN 'CellmetronPress'
+        WHEN LOWER(to_addr) LIKE '%retail@cellmetron.com%'   THEN 'CellmetronRetail'
+        WHEN LOWER(to_addr) LIKE '%investors@cellmetron.com%'THEN 'CellmetronInvestors'
+        WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'CellmetronSupport'
+        WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'CellmetronHR'
+        WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'CellmetronInfo'
+        WHEN LOWER(to_addr) LIKE '%research@sugihairproducts.com%' THEN 'SugiHairResearch'
+        WHEN LOWER(to_addr) LIKE '%press@sugihairproducts.com%'    THEN 'SugiHairPress'
+        WHEN LOWER(to_addr) LIKE '%retail@sugihairproducts.com%'   THEN 'SugiHairRetail'
+        WHEN LOWER(to_addr) LIKE '%investors@sugihairproducts.com%'THEN 'SugiHairInvestors'
+        WHEN LOWER(to_addr) LIKE '%support@sugihairproducts.com%'  THEN 'SugiHairSupport'
+        WHEN LOWER(to_addr) LIKE '%hr@sugihairproducts.com%'       THEN 'SugiHairHR'
+        WHEN LOWER(to_addr) LIKE '%info@sugihairproducts.com%'     THEN 'SugiHairInfo'
+        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'     THEN 'SugiHairHello'
         ELSE 'Other'
       END AS department,
       COUNT(*) AS total
@@ -1379,6 +1405,14 @@ async function composePage(env) {
         <option value="research@cellmetron.com">research@cellmetron.com</option>
         <option value="retail@cellmetron.com">retail@cellmetron.com</option>
         <option value="support@cellmetron.com">support@cellmetron.com</option>
+        <option value="hello@sugihairproducts.com">hello@sugihairproducts.com</option>
+        <option value="hr@sugihairproducts.com">hr@sugihairproducts.com</option>
+        <option value="info@sugihairproducts.com">info@sugihairproducts.com</option>
+        <option value="investors@sugihairproducts.com">investors@sugihairproducts.com</option>
+        <option value="press@sugihairproducts.com">press@sugihairproducts.com</option>
+        <option value="research@sugihairproducts.com">research@sugihairproducts.com</option>
+        <option value="retail@sugihairproducts.com">retail@sugihairproducts.com</option>
+        <option value="support@sugihairproducts.com">support@sugihairproducts.com</option>
       </select>
 
       <br>
