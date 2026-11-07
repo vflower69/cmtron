@@ -1044,7 +1044,18 @@ function buildAutoReply(to, from, subject) {
         "— SUGi Hair Products Investor Relations Team"
     };
   }
-
+  if (to.includes("hello@sugihairproducts.com")) {
+    return {
+      to: from,
+      from: "hello@sugihairproducts.com",
+      subject: `Re: ${subject}`,
+      text:
+        "Thanks for contacting SUGi Hair.\n\n" +
+        "We’ve received your message and will respond within 2–3 business days.\n\n" +
+        "— SUGi Hair"
+    };
+  }
+  
   return null;
 }
 
