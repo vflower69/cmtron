@@ -861,6 +861,10 @@ function routeDepartment(to, isSpam) {
     return "info@cellmetron.com";
   if (to.includes("hr@cellmetron.com"))
     return "hr@cellmetron.com";
+  if (to.includes("mikelau@cellmetron.com"))
+    return "mikelau@cellmetron.com";
+  if (to.includes("emilyliu@cellmetron.com"))
+    return "emilyliu@cellmetron.com";
 
   // For sugihairproducts.com
   if (to.includes("research@sugihairproducts.com"))
@@ -877,6 +881,10 @@ function routeDepartment(to, isSpam) {
     return "info@sugihairproducts.com";
   if (to.includes("hr@sugihairproducts.com"))
     return "hr@sugihairproducts.com";
+  if (to.includes("mikelau@sugihairproducts.com"))
+    return "mikelau@sugihairproducts.com";
+  if (to.includes("emilyliu@sugihairproducts.com"))
+    return "emilyliu@sugihairproducts.com";
 
   return "mikeliu89@hotmail.com";
 }
@@ -1055,7 +1063,7 @@ function buildAutoReply(to, from, subject) {
         "— SUGi Hair"
     };
   }
-  
+
   return null;
 }
 
