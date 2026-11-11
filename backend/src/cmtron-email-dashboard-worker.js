@@ -358,6 +358,8 @@ async function dashboardHome(env) {
         WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'CellmetronSupport'
         WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'CellmetronHR'
         WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'CellmetronInfo'
+        WHEN LOWER(to_addr) LIKE '%mikelau@cellmetron.com%'  THEN 'CellmetronMike'
+        WHEN LOWER(to_addr) LIKE '%emilyliu@cellmetron.com%' THEN 'CellmetronEmily'
         WHEN LOWER(to_addr) LIKE '%research@sugihairproducts.com%' THEN 'SugiHairResearch'
         WHEN LOWER(to_addr) LIKE '%press@sugihairproducts.com%'    THEN 'SugiHairPress'
         WHEN LOWER(to_addr) LIKE '%retail@sugihairproducts.com%'   THEN 'SugiHairRetail'
@@ -365,7 +367,9 @@ async function dashboardHome(env) {
         WHEN LOWER(to_addr) LIKE '%support@sugihairproducts.com%'  THEN 'SugiHairSupport'
         WHEN LOWER(to_addr) LIKE '%hr@sugihairproducts.com%'       THEN 'SugiHairHR'
         WHEN LOWER(to_addr) LIKE '%info@sugihairproducts.com%'     THEN 'SugiHairInfo'
-        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'     THEN 'SugiHairHello'
+        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'    THEN 'SugiHairHello'
+        WHEN LOWER(to_addr) LIKE '%mikelau@sugihairproducts.com%'  THEN 'SugiHairMike'
+        WHEN LOWER(to_addr) LIKE '%emilyliu@sugihairproducts.com%' THEN 'SugiHairEmily'
          ELSE 'Other'
        END AS department,
        COUNT(*) AS total
@@ -816,6 +820,8 @@ async function departmentAnalytics(env) {
         WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'CellmetronSupport'
         WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'CellmetronHR'
         WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'CellmetronInfo'
+        WHEN LOWER(to_addr) LIKE '%mikelau@cellmetron.com%'  THEN 'CellmetronMike'
+        WHEN LOWER(to_addr) LIKE '%emilyliu@cellmetron.com%' THEN 'CellmetronEmily'
         WHEN LOWER(to_addr) LIKE '%research@sugihairproducts.com%' THEN 'SugiHairResearch'
         WHEN LOWER(to_addr) LIKE '%press@sugihairproducts.com%'    THEN 'SugiHairPress'
         WHEN LOWER(to_addr) LIKE '%retail@sugihairproducts.com%'   THEN 'SugiHairRetail'
@@ -823,7 +829,9 @@ async function departmentAnalytics(env) {
         WHEN LOWER(to_addr) LIKE '%support@sugihairproducts.com%'  THEN 'SugiHairSupport'
         WHEN LOWER(to_addr) LIKE '%hr@sugihairproducts.com%'       THEN 'SugiHairHR'
         WHEN LOWER(to_addr) LIKE '%info@sugihairproducts.com%'     THEN 'SugiHairInfo'
-        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'     THEN 'SugiHairHello'
+        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'    THEN 'SugiHairHello'
+        WHEN LOWER(to_addr) LIKE '%mikelau@sugihairproducts.com%'  THEN 'SugiHairMike'
+        WHEN LOWER(to_addr) LIKE '%emilyliu@sugihairproducts.com%' THEN 'SugiHairEmily'
          ELSE 'Other'
        END AS department,
        COUNT(*) AS total,
@@ -1285,6 +1293,8 @@ async function chartsPage(env) {
         WHEN LOWER(to_addr) LIKE '%support@cellmetron.com%'  THEN 'CellmetronSupport'
         WHEN LOWER(to_addr) LIKE '%hr@cellmetron.com%'       THEN 'CellmetronHR'
         WHEN LOWER(to_addr) LIKE '%info@cellmetron.com%'     THEN 'CellmetronInfo'
+        WHEN LOWER(to_addr) LIKE '%mikelau@cellmetron.com%'  THEN 'CellmetronMike'
+        WHEN LOWER(to_addr) LIKE '%emilyliu@cellmetron.com%' THEN 'CellmetronEmily'
         WHEN LOWER(to_addr) LIKE '%research@sugihairproducts.com%' THEN 'SugiHairResearch'
         WHEN LOWER(to_addr) LIKE '%press@sugihairproducts.com%'    THEN 'SugiHairPress'
         WHEN LOWER(to_addr) LIKE '%retail@sugihairproducts.com%'   THEN 'SugiHairRetail'
@@ -1292,7 +1302,9 @@ async function chartsPage(env) {
         WHEN LOWER(to_addr) LIKE '%support@sugihairproducts.com%'  THEN 'SugiHairSupport'
         WHEN LOWER(to_addr) LIKE '%hr@sugihairproducts.com%'       THEN 'SugiHairHR'
         WHEN LOWER(to_addr) LIKE '%info@sugihairproducts.com%'     THEN 'SugiHairInfo'
-        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'     THEN 'SugiHairHello'
+        WHEN LOWER(to_addr) LIKE '%hello@sugihairproducts.com%'    THEN 'SugiHairHello'
+        WHEN LOWER(to_addr) LIKE '%mikelau@sugihairproducts.com%'  THEN 'SugiHairMike'
+        WHEN LOWER(to_addr) LIKE '%emilyliu@sugihairproducts.com%' THEN 'SugiHairEmily'
         ELSE 'Other'
       END AS department,
       COUNT(*) AS total
@@ -1405,6 +1417,8 @@ async function composePage(env) {
         <option value="research@cellmetron.com">research@cellmetron.com</option>
         <option value="retail@cellmetron.com">retail@cellmetron.com</option>
         <option value="support@cellmetron.com">support@cellmetron.com</option>
+        <option value="mikelau@cellmetron.com">mikelau@cellmetron.com</option>
+        <option value="emilyliu@cellmetron.com">emilyliu@cellmetron.com</option>
         <option value="hello@sugihairproducts.com">hello@sugihairproducts.com</option>
         <option value="hr@sugihairproducts.com">hr@sugihairproducts.com</option>
         <option value="info@sugihairproducts.com">info@sugihairproducts.com</option>
@@ -1413,6 +1427,8 @@ async function composePage(env) {
         <option value="research@sugihairproducts.com">research@sugihairproducts.com</option>
         <option value="retail@sugihairproducts.com">retail@sugihairproducts.com</option>
         <option value="support@sugihairproducts.com">support@sugihairproducts.com</option>
+        <option value="mikelau@sugihairproducts.com">mikelau@sugihairproducts.com</option>
+        <option value="emilyliu@sugihairproducts.com">emilyliu@sugihairproducts.com</option>
       </select>
 
       <br>
